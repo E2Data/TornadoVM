@@ -6,8 +6,8 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import tornado.runtime.api.TaskSchedule;
-import tornado.unittests.common.TornadoTestBase;
+import uk.ac.manchester.tornado.runtime.api.TaskSchedule;
+import uk.ac.manchester.tornado.unittests.common.TornadoTestBase;
 
 public class TornadoFlink extends TornadoTestBase {
 
