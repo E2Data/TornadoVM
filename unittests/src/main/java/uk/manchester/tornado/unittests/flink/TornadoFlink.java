@@ -63,15 +63,14 @@ public class TornadoFlink extends TornadoTestBase {
 
         TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
 
+        TornadoFlinkMap mapper = f;
         /*
-         * TornadoFlinkMap mapper = f;
-         * 
          * Class<? extends TornadoFlinkMap> aClass = mapper.getClass(); if (aClass
          * instanceof TornadoFlinkMapFunction) { TornadoFlinkMapFunction a =
          * (TornadoFlinkMapFunction) aClass; }
          */
 
-        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", f::tmap, input, output).streamOut(output);
+        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", mapper::tmap, input, output).streamOut(output);
 
         task.execute();
 
