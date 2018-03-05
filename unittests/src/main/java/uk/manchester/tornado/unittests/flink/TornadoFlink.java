@@ -38,13 +38,7 @@ public class TornadoFlink extends TornadoTestBase {
 
     public static final int N = 16;
 
-    private interface Map {
-        default int map() {
-            return 0;
-        }
-    }
-
-    private interface TornadoFlinkMap extends Map {
+    private interface TornadoFlinkMap {
         public void tmap(int[] a, int[] b);
     }
 
@@ -58,7 +52,7 @@ public class TornadoFlink extends TornadoTestBase {
     }
 
     @Test
-    public static void main(String[] args) {
+    public static void testTornadoFlink01() {
 
         int[] input = new int[N];
         int[] expected = new int[N];
@@ -68,6 +62,14 @@ public class TornadoFlink extends TornadoTestBase {
         Arrays.fill(expected, 20);
 
         TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
+
+        /*
+         * TornadoFlinkMap mapper = f;
+         * 
+         * Class<? extends TornadoFlinkMap> aClass = mapper.getClass(); if (aClass
+         * instanceof TornadoFlinkMapFunction) { TornadoFlinkMapFunction a =
+         * (TornadoFlinkMapFunction) aClass; }
+         */
 
         TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", f::tmap, input, output).streamOut(output);
 
