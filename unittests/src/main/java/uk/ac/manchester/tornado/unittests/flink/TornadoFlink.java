@@ -23,7 +23,7 @@
  * Authors: Juan Fumero
  *
  */
-package uk.manchester.tornado.unittests.flink;
+package uk.ac.manchester.tornado.unittests.flink;
 
 import static org.junit.Assert.assertArrayEquals;
 
@@ -52,7 +52,27 @@ public class TornadoFlink extends TornadoTestBase {
     }
 
     @Test
-    public static void testTornadoFlink01() {
+    public void testTornadoFlinkClass() {
+
+        int[] input = new int[N];
+        int[] expected = new int[N];
+        int[] output = new int[N];
+
+        Arrays.fill(input, 10);
+        Arrays.fill(expected, 20);
+
+        TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
+
+        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", f::tmap, input, output).streamOut(output);
+
+        task.execute();
+
+        System.out.println("output: " + Arrays.toString(output));
+        assertArrayEquals(expected, output);
+    }
+    
+    @Test
+    public void testTornadoFlinkInterface() {
 
         int[] input = new int[N];
         int[] expected = new int[N];
@@ -64,11 +84,6 @@ public class TornadoFlink extends TornadoTestBase {
         TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
 
         TornadoFlinkMap mapper = f;
-        /*
-         * Class<? extends TornadoFlinkMap> aClass = mapper.getClass(); if (aClass
-         * instanceof TornadoFlinkMapFunction) { TornadoFlinkMapFunction a =
-         * (TornadoFlinkMapFunction) aClass; }
-         */
 
         TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", mapper::tmap, input, output).streamOut(output);
 
