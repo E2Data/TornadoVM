@@ -27,6 +27,7 @@ package uk.ac.manchester.tornado.unittests.flink;
 
 import static org.junit.Assert.assertArrayEquals;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 
 import org.junit.Test;
@@ -41,7 +42,8 @@ public class TornadoFlink extends TornadoTestBase {
     private interface TornadoFlinkMap {
         public void tmap(int[] a, int[] b);
     }
-
+    
+   
     private static class TornadoFlinkMapFunction implements TornadoFlinkMap {
         @Override
         public void tmap(int[] a, int[] b) {
@@ -49,6 +51,26 @@ public class TornadoFlink extends TornadoTestBase {
                 b[i] = a[i] + 10;
             }
         }
+    }
+    
+    private abstract static class TornadoFlinkMapBase implements TornadoFlinkMap {
+    	
+    	public abstract void compute(int[]a, int[] b);
+    	
+    	@Override
+        public void tmap(int[] a, int[] b) {
+    		compute(a, b);
+        }
+    }
+    
+    private static class Foo extends TornadoFlinkMapBase {	
+    	@Override
+        public void compute(int[] a, int[] b) {
+    		for (int i = 0; i < a.length; i++) {
+                b[i] = a[i] + 10;
+            }
+        }
+    	
     }
 
     @Test
@@ -61,9 +83,9 @@ public class TornadoFlink extends TornadoTestBase {
         Arrays.fill(input, 10);
         Arrays.fill(expected, 20);
 
-        TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
+        TornadoFlinkMapFunction function = new TornadoFlinkMapFunction();
 
-        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", f::tmap, input, output).streamOut(output);
+        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", function::tmap, input, output).streamOut(output);
 
         task.execute();
 
@@ -81,11 +103,60 @@ public class TornadoFlink extends TornadoTestBase {
         Arrays.fill(input, 10);
         Arrays.fill(expected, 20);
 
-        TornadoFlinkMapFunction f = new TornadoFlinkMapFunction();
+        TornadoFlinkMap function = new TornadoFlinkMapFunction();
+        
+        final Class<?> klass = function.getClass();
+        Method tmapMethod = null;
+        for (Method method : klass.getDeclaredMethods()) {
+            if (method.getName().equals("tmap")) {
+                tmapMethod = method;
+            }
+        }
+        
+        Method method = null;
+        try {
+        	method = function.getClass().getMethod("tmap", int[].class, int[].class);
+        	
+        } catch (Exception e) {
+        	
+        }
+        
+        System.out.println(tmapMethod);
+        
+        
 
-        TornadoFlinkMap mapper = f;
+        // @formatter:off
+        TaskSchedule task = new TaskSchedule("s0")
+        						.streamIn(input)
+        						.task("t0", function::tmap, input, output)
+        						.streamOut(output);
+        // @formatter:on
 
-        TaskSchedule task = new TaskSchedule("s0").streamIn(input).task("t0", mapper::tmap, input, output).streamOut(output);
+        task.execute();
+
+        System.out.println("output: " + Arrays.toString(output));
+        assertArrayEquals(expected, output);
+    }
+    
+    
+    @Test
+    public void testTornadoFlinkAdapter() {
+
+        int[] input = new int[N];
+        int[] expected = new int[N];
+        int[] output = new int[N];
+
+        Arrays.fill(input, 10);
+        Arrays.fill(expected, 20);
+
+        TornadoFlinkMapBase function = new Foo();
+        
+        // @formatter:off
+        TaskSchedule task = new TaskSchedule("s0")
+        						.streamIn(input)
+        						.task("t0", function::tmap, input, output)
+        						.streamOut(output);
+        // @formatter:on
 
         task.execute();
 
