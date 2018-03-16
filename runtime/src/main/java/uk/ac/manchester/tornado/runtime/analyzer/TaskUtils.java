@@ -91,9 +91,10 @@ public class TaskUtils {
         final Class<?> type = task.getClass();
 
         /*
-         * task should implement one of the TaskX interfaces... ...so we look for the
-         * apply function. Note: apply will perform some type casting and then call the
-         * function we really want to use, so we need to resolve the nested function.
+         * task should implement one of the TaskX interfaces... ...so we look
+         * for the apply function. Note: apply will perform some type casting
+         * and then call the function we really want to use, so we need to
+         * resolve the nested function.
          */
         Method entryPoint = null;
         for (Method m : type.getDeclaredMethods()) {
@@ -104,8 +105,8 @@ public class TaskUtils {
 
         guarantee(entryPoint != null, "unable to find entry point");
         /*
-         * Fortunately we can do a bit of JVMCI magic to resolve the function to a
-         * Method.
+         * Fortunately we can do a bit of JVMCI magic to resolve the function to
+         * a Method.
          */
         final ResolvedJavaMethod resolvedMethod = TornadoCoreRuntime.getVMBackend().getMetaAccess().lookupJavaMethod(entryPoint);
         final ConstantPool cp = resolvedMethod.getConstantPool();
@@ -113,7 +114,6 @@ public class TaskUtils {
 
         for (int i = 0; i < bc.length; i++) {
             if (bc[i] == (byte) Bytecodes.INVOKESTATIC) {
-                System.out.println("====> INVOKESTATIC CASE");
                 cp.loadReferencedType(bc[i + 2], Bytecodes.INVOKESTATIC);
                 JavaMethod jm = cp.lookupMethod(bc[i + 2], Bytecodes.INVOKESTATIC);
                 try {
@@ -134,7 +134,6 @@ public class TaskUtils {
                 }
                 break;
             } else if (bc[i] == (byte) Bytecodes.INVOKEVIRTUAL) {
-                System.out.println("====> INVOKEVIRTUAL CASE");
                 cp.loadReferencedType(bc[i + 2], Bytecodes.INVOKEVIRTUAL);
                 JavaMethod jm = cp.lookupMethod(bc[i + 2], Bytecodes.INVOKEVIRTUAL);
                 switch (jm.getName()) {
