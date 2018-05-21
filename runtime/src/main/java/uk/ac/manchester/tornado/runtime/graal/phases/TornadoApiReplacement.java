@@ -143,10 +143,6 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
             }
         });
 
-        /*
-         * for (Node n : graph.getNodes()) { System.out.println(n); }
-         */
-
         if (graph.hasLoops()) {
             final LoopsData data = new LoopsData(graph);
             data.detectedCountedLoops();
