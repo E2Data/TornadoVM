@@ -141,6 +141,10 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
             }
         });
 
+        for (Node n : graph.getNodes()) {
+            System.out.println(n);
+        }
+
         if (graph.hasLoops()) {
             final LoopsData data = new LoopsData(graph);
             data.detectedCountedLoops();
@@ -159,6 +163,7 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
                         continue;
                     }
                     ValueNode maxIterations;
+
                     List<IntegerLessThanNode> conditions = iv.valueNode().usages().filter(IntegerLessThanNode.class).snapshot();
                     if (conditions.size() == 1) {
                         final IntegerLessThanNode lessThan = conditions.get(0);
