@@ -54,6 +54,8 @@ import static uk.ac.manchester.tornado.runtime.common.Tornado.TORNADO_LOOPS_REVE
 
 public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
 
+    public static String FlinkClass = null;
+
     @Override
     protected void run(StructuredGraph graph, TornadoSketchTierContext context) {
         replaceParameterAnnotations(graph);
@@ -141,9 +143,9 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
             }
         });
 
-        for (Node n : graph.getNodes()) {
-            System.out.println(n);
-        }
+        /*
+         * for (Node n : graph.getNodes()) { System.out.println(n); }
+         */
 
         if (graph.hasLoops()) {
             final LoopsData data = new LoopsData(graph);
@@ -159,6 +161,7 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
             // data.outerFirst() Collections.reverse(loops);
             for (LoopEx loop : loops) {
                 for (InductionVariable iv : loop.getInductionVariables().getValues()) {
+
                     if (!parallelNodes.containsKey(iv.valueNode())) {
                         continue;
                     }

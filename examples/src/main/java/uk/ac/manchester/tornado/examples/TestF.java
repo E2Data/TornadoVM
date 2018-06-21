@@ -9,6 +9,7 @@ public class TestF {
         public void compute(int[] a, int[] b) {
             for (@Parallel int i = 0; i < a.length; i++) {
                 b[i] = a[i] * 2;
+
             }
         }
     }

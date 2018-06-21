@@ -23,5 +23,7 @@ public class TestFlink {
         TestF tf = new TestF();
         TornadoMapFunctionBase tm = (TornadoMapFunctionBase) tf.retV();
         new TaskSchedule("s0").task("t0", tm::tmap, a, b).execute();
+        // new TaskSchedule("s0").task("t0", (new
+        // TestF.VectorScalarMultiplication())::compute, a, b).execute();
     }
 }
