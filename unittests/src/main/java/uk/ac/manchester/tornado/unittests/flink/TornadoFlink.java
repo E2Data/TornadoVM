@@ -32,7 +32,7 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import uk.ac.manchester.tornado.runtime.api.TaskSchedule;
+import uk.ac.manchester.tornado.api.TaskSchedule;
 import uk.ac.manchester.tornado.unittests.common.TornadoTestBase;
 
 public class TornadoFlink extends TornadoTestBase {
@@ -42,8 +42,7 @@ public class TornadoFlink extends TornadoTestBase {
     private interface TornadoFlinkMap {
         public void tmap(int[] a, int[] b);
     }
-    
-   
+
     private static class TornadoFlinkMapFunction implements TornadoFlinkMap {
         @Override
         public void tmap(int[] a, int[] b) {
@@ -52,25 +51,25 @@ public class TornadoFlink extends TornadoTestBase {
             }
         }
     }
-    
+
     private abstract static class TornadoFlinkMapBase implements TornadoFlinkMap {
-    	
-    	public abstract void compute(int[]a, int[] b);
-    	
-    	@Override
+
+        public abstract void compute(int[] a, int[] b);
+
+        @Override
         public void tmap(int[] a, int[] b) {
-    		compute(a, b);
+            compute(a, b);
         }
     }
-    
-    private static class Foo extends TornadoFlinkMapBase {	
-    	@Override
+
+    private static class Foo extends TornadoFlinkMapBase {
+        @Override
         public void compute(int[] a, int[] b) {
-    		for (int i = 0; i < a.length; i++) {
+            for (int i = 0; i < a.length; i++) {
                 b[i] = a[i] + 10;
             }
         }
-    	
+
     }
 
     @Test
@@ -92,7 +91,7 @@ public class TornadoFlink extends TornadoTestBase {
         System.out.println("output: " + Arrays.toString(output));
         assertArrayEquals(expected, output);
     }
-    
+
     @Test
     public void testTornadoFlinkInterface() {
 
@@ -104,7 +103,7 @@ public class TornadoFlink extends TornadoTestBase {
         Arrays.fill(expected, 20);
 
         TornadoFlinkMap function = new TornadoFlinkMapFunction();
-        
+
         final Class<?> klass = function.getClass();
         Method tmapMethod = null;
         for (Method method : klass.getDeclaredMethods()) {
@@ -112,18 +111,16 @@ public class TornadoFlink extends TornadoTestBase {
                 tmapMethod = method;
             }
         }
-        
+
         Method method = null;
         try {
-        	method = function.getClass().getMethod("tmap", int[].class, int[].class);
-        	
+            method = function.getClass().getMethod("tmap", int[].class, int[].class);
+
         } catch (Exception e) {
-        	
+
         }
-        
+
         System.out.println(tmapMethod);
-        
-        
 
         // @formatter:off
         TaskSchedule task = new TaskSchedule("s0")
@@ -137,8 +134,7 @@ public class TornadoFlink extends TornadoTestBase {
         System.out.println("output: " + Arrays.toString(output));
         assertArrayEquals(expected, output);
     }
-    
-    
+
     @Test
     public void testTornadoFlinkAdapter() {
 
@@ -150,7 +146,7 @@ public class TornadoFlink extends TornadoTestBase {
         Arrays.fill(expected, 20);
 
         TornadoFlinkMapBase function = new Foo();
-        
+
         // @formatter:off
         TaskSchedule task = new TaskSchedule("s0")
         						.streamIn(input)

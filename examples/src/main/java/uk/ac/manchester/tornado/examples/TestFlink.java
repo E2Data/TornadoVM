@@ -1,6 +1,6 @@
 package uk.ac.manchester.tornado.examples;
 
-import uk.ac.manchester.tornado.runtime.api.TaskSchedule;
+import uk.ac.manchester.tornado.api.TaskSchedule;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
