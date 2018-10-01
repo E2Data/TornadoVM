@@ -1,14 +1,14 @@
 package uk.ac.manchester.tornado.examples;
 
-public abstract class TornadoMapFunctionBase<T, O> implements TornadoMapFunction<T, O> {
+public abstract class RichTornadoMapFunction<T1, T2> implements TornadoMapFunction<T1, T2> {
 
-    public abstract void compute(double[] a, double[] b);
+    private static final long serialVersionUID = 1L;
 
     public abstract void compute(double[] a, double[] b, double[] c, double[] d, double[] e, double[] f);
 
     @Override
-    public void tmap(double[] a, double[] b) {
-        compute(a, b);
+    public void tmap(double[] input, double[] output) {
+
     }
 
     @Override
