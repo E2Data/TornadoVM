@@ -7,7 +7,7 @@ public interface TornadoMapFunction<T, O> extends MapFunction<T, O> {
     default O map(T value) {
         // returns 1. Since this is still called to collect the results, null caused an
         // exception
-        return (O) new Integer(1);
+        return (O) new Double(1);
     }
 
 }
