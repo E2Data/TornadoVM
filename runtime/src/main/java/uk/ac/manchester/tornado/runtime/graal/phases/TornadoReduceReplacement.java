@@ -71,7 +71,7 @@ public class TornadoReduceReplacement extends BasePhase<TornadoSketchTierContext
      * reductions. It assumes that the value to store is a binary arithmetic and
      * then load index. As soon as we discover more cases, new nodes should be
      * inspected here.
-     * <p>
+     *
      * Cover all the cases here as soon as we discover more reductions use-cases.
      *
      * @param arrayToStore
@@ -351,6 +351,7 @@ public class TornadoReduceReplacement extends BasePhase<TornadoSketchTierContext
     }
 
     private void findParametersWithReduceAnnotations(StructuredGraph graph, TornadoSketchTierContext context) {
+        System.out.println("Analysing parameters!");
         final Annotation[][] parameterAnnotations = graph.method().getParameterAnnotations();
         for (int index = 0; index < parameterAnnotations.length; index++) {
             for (Annotation annotation : parameterAnnotations[index]) {

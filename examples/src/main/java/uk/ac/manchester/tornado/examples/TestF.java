@@ -51,7 +51,7 @@ public class TestF {
 
         @Override
         public void compute(double[] point, @Reduce double[] accres) {
-            accres[0] = 0.0f;
+            accres[0] = 0;
             for (@Parallel int k = 0; k < point.length; k++) {
                 accres[0] += point[k];
             }

@@ -23,7 +23,7 @@ public class TestFlink {
     // public static final double[] points_y = new double[] { -48.01f, 57.10f,
     // 56.18f, -42.99f, 50.29f, -46.26f, 3.4f, 4.3, 48.21, 7.2 };
 
-    public static final double[] p_x = new double[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+    public static final double[] p_x = new double[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
     // public static final double[] p_y = new double[] { 1, 2, 4, 4, 5, 6, 7, 8, 9,
     // 10 };
 
@@ -40,11 +40,12 @@ public class TestFlink {
      */
 
     public static void main(String[] args) {
-        double[] test = new double[1];
+        double[] test = new double[4];
         TestF tf = new TestF();
         TornadoReduceFunctionBase accum = (TornadoReduceFunctionBase) tf.retAccum();
         new TaskSchedule("s1").task("t1", accum::treduce, p_x, test).streamOut(test).execute();
-        System.out.println("test = " + test[0]);
+        System.out.println(Arrays.toString(test));
+        // System.out.println("test = " + test[0]);
 
     }
 
