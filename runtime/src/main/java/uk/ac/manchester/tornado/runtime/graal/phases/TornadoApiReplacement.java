@@ -161,7 +161,6 @@ public class TornadoApiReplacement extends BasePhase<TornadoSketchTierContext> {
             // data.outerFirst() Collections.reverse(loops);
             for (LoopEx loop : loops) {
                 for (InductionVariable iv : loop.getInductionVariables().getValues()) {
-
                     if (!parallelNodes.containsKey(iv.valueNode())) {
                         continue;
                     }

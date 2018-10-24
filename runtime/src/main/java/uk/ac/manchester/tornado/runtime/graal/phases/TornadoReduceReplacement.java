@@ -351,7 +351,6 @@ public class TornadoReduceReplacement extends BasePhase<TornadoSketchTierContext
     }
 
     private void findParametersWithReduceAnnotations(StructuredGraph graph, TornadoSketchTierContext context) {
-        System.out.println("Analysing parameters!");
         final Annotation[][] parameterAnnotations = graph.method().getParameterAnnotations();
         for (int index = 0; index < parameterAnnotations.length; index++) {
             for (Annotation annotation : parameterAnnotations[index]) {
