@@ -246,6 +246,18 @@ public class TestFlink {
 	count_end = System.nanoTime();
 
         ts1.execute();
+	//long end1 = System.currentTimeMillis();
+	//long elapsed1 = end1 - start1;
+	//System.out.println("======= elapsed ts1: " + elapsed1 + " (ms)");
+	System.out.println("=== redResX1: size: " + redResX1.length);
+	for(int i = 0; i < redResX1.length; i++) {
+		System.out.println(redResX1[i]);
+	}
+	
+	System.out.println("=== redResY1: size: " + redResY1.length);
+        for(int i = 0; i < redResY1.length; i++) {
+                System.out.println(redResY1[i]);
+        }
 
 	ts1_end = System.nanoTime();
 
@@ -257,10 +269,23 @@ public class TestFlink {
             redResX[1] += redResX2[j];
             redResY[1] += redResY2[j];
         }
+	System.out.println("\n");	
+	for(int i = 0; i < redResX.length; i++) {
+		System.out.println("redResX[" + i + "]: " + redResX[i] + " redResY[" + i + "]: " + redResY[i]);
+	}
 
 	red_end = System.nanoTime();
 	
         ts2.execute();
+	System.out.println("\n===== New Centroids: ");
+	for(int i = 0; i < centrX.length; i++) {
+		System.out.println("(" + centrX[i] + ", " + centrY[i] + ")");
+	}
+	//long end2 = System.currentTimeMillis();
+	//long elapsed2 = end2 - start2;
+	//System.out.println("======= elapsed ts2: " + elapsed2 + " (ms)");
+	//long total = elapsed0 + elapsed1 + elapsed2;
+	//System.out.println("Total: " + total + " (ms)");
 
 	total_end = System.nanoTime(); 
 	
