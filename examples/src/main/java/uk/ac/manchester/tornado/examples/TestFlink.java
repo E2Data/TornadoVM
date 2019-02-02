@@ -176,8 +176,15 @@ public class TestFlink {
 
         TaskSchedule ts0 = new TaskSchedule("s0").task("t0", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centroidsX, centroidsY, selId).streamOut(selId)
                 .task("t1", TestFlink::groupBy, pointsx, pointsy, selId, pointx1, pointy1, pointx2, pointy2).streamOut(pointx1).streamOut(pointy1).streamOut(pointx2).streamOut(pointy2);
+	ts0.warmup();
+	//long start0 = System.currentTimeMillis();
         ts0.execute();
-
+	//long end0 = System.currentTimeMillis();
+	//long elapsed0 = end0 - start0;
+	//System.out.println("======= elapsed ts0: " + elapsed0 + " (ms)");
+/*	for(int i = 0; i < selId.length; i++) {
+            System.out.println("sel[" + i + "] = " + selId[i]);
+        } */
         int numpoints1 = 0;
         int numpoints2 = 0;
         for (int i = 0; i < pointsx.length; i++) {
@@ -190,17 +197,52 @@ public class TestFlink {
         count[0] = numpoints1;
         count[1] = numpoints2;
 
+//	System.out.println("\n====== Points x for centroid 1: ");
+//        for(int i = 0; i < pointx1.length; i++) {
+//            if(pointx1[i] != 0 ) {
+//        	System.out.println(pointx1[i]);
+//            }
+//        }
+//	System.out.println("\n====== Points y for centroid 1: ");
+//	for(int i = 0; i < pointy1.length; i++) {
+//            if(pointy1[i] != 0) {
+//                System.out.println(pointy1[i]);
+//            }
+//        }
+
+//	System.out.println("\n====== Points x for centroid 2: ");
+//        for(int i = 0; i < pointx1.length; i++) {
+//            if(pointx2[i] != 0 ) {
+//                System.out.println(pointx2[i]);
+//            }
+//        }
+//        System.out.println("\n====== Points y for centroid 2: ");
+//        for(int i = 0; i < pointy2.length; i++) {
+//            if(pointy2[i] != 0) {
+//                System.out.println(pointy2[i]);
+//            }
+//        }
+
+        
+     /*   System.out.println("\n====== Points for centroid 2: ");
+        for(int i = 0; i < pointx2.length; i++) {
+            if(pointx2[i] != 0 && pointy2[i] != 0) {
+                System.out.println("(" + pointx2[i] + ", " + pointy2[i] + ")");
+            }
+        } */
+
         int numGroups1 = 1;
         int numGroups2 = 1;
         int centrpoints1 = count[0];
         int centrpoints2 = count[1];
 
+	int workgroup_size = 256;
         // 256 = workgroup size!
-        if (centrpoints1 > 256) {
-            numGroups1 = centrpoints1 / 256;
+        if (centrpoints1 > workgroup_size) {
+            numGroups1 = centrpoints1 / workgroup_size;
         }
-        if (centrpoints2 > 256) {
-            numGroups2 = centrpoints2 / 256;
+        if (centrpoints2 > workgroup_size) {
+            numGroups2 = centrpoints2 / workgroup_size;
         }
         TornadoDeviceType deviceType = getDefaultDeviceType();
         switch (deviceType) {
@@ -224,7 +266,31 @@ public class TestFlink {
 
         TaskSchedule ts1 = new TaskSchedule("s1").task("t0", TestFlink::cendroidAccum, pointx1, redResX1).streamOut(redResX1).task("t1", TestFlink::cendroidAccum, pointy1, redResY1)
                 .streamOut(redResY1).task("t2", TestFlink::cendroidAccum, pointx2, redResX2).streamOut(redResX2).task("t3", TestFlink::cendroidAccum, pointy2, redResY2).streamOut(redResY2);
+	ts1.warmup();
+	//long start1 = System.currentTimeMillis();
         ts1.execute();
+	//long end1 = System.currentTimeMillis();
+	//long elapsed1 = end1 - start1;
+	//System.out.println("======= elapsed ts1: " + elapsed1 + " (ms)");
+	System.out.println("=== redResX1: size: " + redResX1.length);
+	for(int i = 0; i < redResX1.length; i++) {
+		System.out.println(redResX1[i]);
+	}
+	
+	System.out.println("=== redResY1: size: " + redResY1.length);
+        for(int i = 0; i < redResY1.length; i++) {
+                System.out.println(redResY1[i]);
+        }
+
+	System.out.println("\n=== redResX2: size: " + redResX2.length);
+        for(int i = 0; i < redResX2.length; i++) {
+                System.out.println(redResX2[i]);
+        }
+
+	System.out.println("=== redResY2: size: " + redResY2.length);
+	for(int i = 0; i < redResY2.length; i++) {
+                System.out.println(redResY2[i]);
+        }
 
         for (int j = 0; j < redResX1.length; j++) {
             redResX[0] += redResX1[j];
@@ -234,10 +300,25 @@ public class TestFlink {
             redResX[1] += redResX2[j];
             redResY[1] += redResY2[j];
         }
+	System.out.println("\n");	
+	for(int i = 0; i < redResX.length; i++) {
+		System.out.println("redResX[" + i + "]: " + redResX[i] + " redResY[" + i + "]: " + redResY[i]);
+	}
 
-        TaskSchedule ts2 = new TaskSchedule("s2").task("t0", TestFlink::centroidAvg, redResX, redResY, count, centrX, centrY).streamOut(centrX).streamOut(centrY)
-                .task("t1", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centrX, centrY, selId2).streamOut(selId2);
+        TaskSchedule ts2 = new TaskSchedule("s2").task("t0", TestFlink::centroidAvg, redResX, redResY, count, centrX, centrY).streamOut(centrX).streamOut(centrY);
+        //        .task("t1", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centrX, centrY, selId2).streamOut(selId2);
+	ts2.warmup();
+	//long start2 = System.currentTimeMillis();
         ts2.execute();
+	System.out.println("\n===== New Centroids: ");
+	for(int i = 0; i < centrX.length; i++) {
+		System.out.println("(" + centrX[i] + ", " + centrY[i] + ")");
+	}
+	//long end2 = System.currentTimeMillis();
+	//long elapsed2 = end2 - start2;
+	//System.out.println("======= elapsed ts2: " + elapsed2 + " (ms)");
+	//long total = elapsed0 + elapsed1 + elapsed2;
+	//System.out.println("Total: " + total + " (ms)");
 
     }
 
