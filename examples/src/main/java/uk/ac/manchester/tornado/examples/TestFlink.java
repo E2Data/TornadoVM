@@ -162,10 +162,10 @@ public class TestFlink {
         double[] pointy2 = new double[numOfpoints];
         int[] count = new int[2];
         // centrAcc
-        double[] redResX1 = null;
-        double[] redResY1 = null;
-        double[] redResX2 = null;
-        double[] redResY2 = null;
+        double[] redResX1 = new double[1];
+        double[] redResY1 = new double[1];
+        double[] redResX2 = new double[1];
+        double[] redResY2 = new double[1];
         // avg
         double[] redResX = new double[2];
         double[] redResY = new double[2];
@@ -209,6 +209,8 @@ public class TestFlink {
             default:
                 break;
         }
+	
+	wg_end = System.nanoTime();
 
 	TaskSchedule ts0 = new TaskSchedule("s0").task("t0", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centroidsX, centroidsY, selId).streamOut(selId)
                 .task("t1", TestFlink::groupBy, pointsx, pointsy, selId, pointx1, pointy1, pointx2, pointy2).streamOut(pointx1).streamOut(pointy1).streamOut(pointx2).streamOut(pointy2);
@@ -246,18 +248,6 @@ public class TestFlink {
 	count_end = System.nanoTime();
 
         ts1.execute();
-	//long end1 = System.currentTimeMillis();
-	//long elapsed1 = end1 - start1;
-	//System.out.println("======= elapsed ts1: " + elapsed1 + " (ms)");
-	System.out.println("=== redResX1: size: " + redResX1.length);
-	for(int i = 0; i < redResX1.length; i++) {
-		System.out.println(redResX1[i]);
-	}
-	
-	System.out.println("=== redResY1: size: " + redResY1.length);
-        for(int i = 0; i < redResY1.length; i++) {
-                System.out.println(redResY1[i]);
-        }
 
 	ts1_end = System.nanoTime();
 
@@ -269,23 +259,10 @@ public class TestFlink {
             redResX[1] += redResX2[j];
             redResY[1] += redResY2[j];
         }
-	System.out.println("\n");	
-	for(int i = 0; i < redResX.length; i++) {
-		System.out.println("redResX[" + i + "]: " + redResX[i] + " redResY[" + i + "]: " + redResY[i]);
-	}
 
 	red_end = System.nanoTime();
 	
         ts2.execute();
-	System.out.println("\n===== New Centroids: ");
-	for(int i = 0; i < centrX.length; i++) {
-		System.out.println("(" + centrX[i] + ", " + centrY[i] + ")");
-	}
-	//long end2 = System.currentTimeMillis();
-	//long elapsed2 = end2 - start2;
-	//System.out.println("======= elapsed ts2: " + elapsed2 + " (ms)");
-	//long total = elapsed0 + elapsed1 + elapsed2;
-	//System.out.println("Total: " + total + " (ms)");
 
 	total_end = System.nanoTime(); 
 	
