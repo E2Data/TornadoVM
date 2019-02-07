@@ -162,10 +162,10 @@ public class TestFlink {
         double[] pointy2 = new double[numOfpoints];
         int[] count = new int[2];
         // centrAcc
-        double[] redResX1 = new double[1];
-        double[] redResY1 = new double[1];
-        double[] redResX2 = new double[1];
-        double[] redResY2 = new double[1];
+        double[] redResX1 = null;
+        double[] redResY1 = null;
+        double[] redResX2 = null;
+        double[] redResY2 = null;
         // avg
         double[] redResX = new double[2];
         double[] redResY = new double[2];
@@ -174,7 +174,43 @@ public class TestFlink {
 	long total_start, total_end, ts0_end, count_end, ts1_end, wg_end, red_end, total, ts0_time, ts1_time, ts2_time, count_elem, wg, red, extra, total_sum;
         // ---------------------------
 
-        TaskSchedule ts0 = new TaskSchedule("s0").task("t0", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centroidsX, centroidsY, selId).streamOut(selId)
+        int numGroups1 = 1;
+        int numGroups2 = 1;
+	// NOTE: The following two initializations are only correct for
+	// for this particular set of experiments with this input datasets!
+        int centrpoints1 = numOfpoints / 2;
+        int centrpoints2 = numOfpoints / 2;
+	
+	
+        int workgroup_size = 128;
+
+        if (centrpoints1 > workgroup_size) {
+            numGroups1 = centrpoints1 / workgroup_size;
+        }
+        if (centrpoints2 > workgroup_size) {
+            numGroups2 = centrpoints2 / workgroup_size;
+        }
+        TornadoDeviceType deviceType = getDefaultDeviceType();
+        switch (deviceType) {
+            case CPU:
+                redResX1 = new double[Runtime.getRuntime().availableProcessors()];
+                redResY1 = new double[Runtime.getRuntime().availableProcessors()];
+                redResX2 = new double[Runtime.getRuntime().availableProcessors()];
+                redResY2 = new double[Runtime.getRuntime().availableProcessors()];
+                break;
+            case DEFAULT:
+                break;
+            case GPU:
+                redResX1 = new double[numGroups1];
+                redResY1 = new double[numGroups1];
+                redResX2 = new double[numGroups2];
+                redResY2 = new double[numGroups2];
+                break;
+            default:
+                break;
+        }
+
+	TaskSchedule ts0 = new TaskSchedule("s0").task("t0", TestFlink::selectNearestCentroids, pointsx, pointsy, centroidsID, centroidsX, centroidsY, selId).streamOut(selId)
                 .task("t1", TestFlink::groupBy, pointsx, pointsy, selId, pointx1, pointy1, pointx2, pointy2).streamOut(pointx1).streamOut(pointy1).streamOut(pointx2).streamOut(pointy2);
 
 	TaskSchedule ts1 = new TaskSchedule("s1").task("t0", TestFlink::cendroidAccum, pointx1, redResX1).streamOut(redResX1).task("t1", TestFlink::cendroidAccum, pointy1, redResY1)
@@ -203,46 +239,11 @@ public class TestFlink {
                 numpoints2++;
             }
         }
+	
+	count[0] = numpoints1;
+	count[1] = numpoints2;
 
 	count_end = System.nanoTime();
-
-        count[0] = numpoints1;
-        count[1] = numpoints2;
-
-        int numGroups1 = 1;
-        int numGroups2 = 1;
-        int centrpoints1 = count[0];
-        int centrpoints2 = count[1];
-
-	int workgroup_size = 128;
-      
-        if (centrpoints1 > workgroup_size) {
-            numGroups1 = centrpoints1 / workgroup_size;
-        }
-        if (centrpoints2 > workgroup_size) {
-            numGroups2 = centrpoints2 / workgroup_size;
-        }
-        TornadoDeviceType deviceType = getDefaultDeviceType();
-        switch (deviceType) {
-            case CPU:
-                redResX1 = new double[Runtime.getRuntime().availableProcessors()];
-                redResY1 = new double[Runtime.getRuntime().availableProcessors()];
-                redResX2 = new double[Runtime.getRuntime().availableProcessors()];
-                redResY2 = new double[Runtime.getRuntime().availableProcessors()];
-                break;
-            case DEFAULT:
-                break;
-            case GPU:
-                redResX1 = new double[numGroups1];
-                redResY1 = new double[numGroups1];
-                redResX2 = new double[numGroups2];
-                redResY2 = new double[numGroups2];
-                break;
-            default:
-                break;
-        }
-	
-	wg_end = System.nanoTime();
 
         ts1.execute();
 
@@ -267,23 +268,21 @@ public class TestFlink {
 	total = total_end - total_start;
 	ts0_time = ts0_end - total_start;
 	count_elem = count_end - ts0_end;
-	wg = wg_end - count_end;
-	ts1_time = ts1_end - wg_end;
+	ts1_time = ts1_end - count_end;
 	red = red_end - ts1_end;
 	ts2_time = total_end - red_end;
-	extra = red + count_elem + wg;
-	total_sum = ts0_time + ts1_time + ts2_time + count_elem + wg + red; 	
+	extra = red + count_elem;
+	total_sum = ts0_time + ts1_time + ts2_time + count_elem + red; 	
 
 	System.out.println("=== Task Schedule 0: " + ts0_time + " (ns)");
 	System.out.println("=== Task Schedule 1: " + ts1_time + " (ns)");
 	System.out.println("=== Task Schedule 2: " + ts2_time + " (ns)");
 	System.out.println("=== Count number of points per centroid: " + count_elem + " (ns)");
-	System.out.println("=== Create arrays for reduction: " + wg + " (ns)");
 	System.out.println("=== Sum results of reduction: " + red + " (ns)");
 	System.out.println("=== Total: " + total + " (ns)");
 	System.out.println("=== Total (ts0 + ts1 + ts2 + extras): " + total_sum + " (ns)");
 	System.out.println("=== Extra operations on CPU: " + extra + " (ns)");
-
+	
     }
 
 }
