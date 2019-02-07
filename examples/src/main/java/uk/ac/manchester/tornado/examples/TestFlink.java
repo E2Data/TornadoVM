@@ -162,10 +162,10 @@ public class TestFlink {
         double[] pointy2 = new double[numOfpoints];
         int[] count = new int[2];
         // centrAcc
-        double[] redResX1 = new double[1];
-        double[] redResY1 = new double[1];
-        double[] redResX2 = new double[1];
-        double[] redResY2 = new double[1];
+        double[] redResX1 = null;
+        double[] redResY1 = null;
+        double[] redResX2 = null;
+        double[] redResY2 = null;
         // avg
         double[] redResX = new double[2];
         double[] redResY = new double[2];
