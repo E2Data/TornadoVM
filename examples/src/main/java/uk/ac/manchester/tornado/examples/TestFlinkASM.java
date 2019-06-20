@@ -15,6 +15,7 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.util.StringTokenizer;
 
 public class TestFlinkASM {
 
@@ -26,7 +27,7 @@ public class TestFlinkASM {
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
             MethodVisitor mv = cv.visitMethod(access, name, desc, signature, exceptions);
-            if (name.contains("map")) {
+            if (name.contains("map") && desc.contains(skeletonMapDesc)) {
                 return new VariableAdapter(access, desc, mv);
             } else {
                 return mv;
@@ -51,11 +52,11 @@ public class TestFlinkASM {
         @Override
         public void visitCode() {
             // get the index for the new variable fudf
-            udf = newLocal(Type.getType("Luk/ac/manchester/tornado/examples/FlinkMapUDF$Flink;"));
+            udf = newLocal(Type.getType("L" + userClassName + ";"));
             // bytecodes to create -> FlinkMapUDF.Flink fudf = new FlinkMapUDF.Flink();
-            mv.visitTypeInsn(Opcodes.NEW, "uk/ac/manchester/tornado/examples/FlinkMapUDF$Flink");
+            mv.visitTypeInsn(Opcodes.NEW, userClassName);
             mv.visitInsn(Opcodes.DUP);
-            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "uk/ac/manchester/tornado/examples/FlinkMapUDF$Flink", "<init>", "()V", false);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, userClassName, "<init>", "()V", false);
             mv.visitVarInsn(Opcodes.ASTORE, udf);
             // this label is to mark the first instruction corresponding to the scope of
             // variable fudf
@@ -79,23 +80,23 @@ public class TestFlinkASM {
             // load index i for the in array
             mv.visitVarInsn(Opcodes.ILOAD, 3);
             // load int stored in in[i]
-            mv.visitInsn(Opcodes.IALOAD);
+            mv.visitInsn(GALOAD);
             // valueOf gets the int in in[i] and returns the corresponding Integer, which
             // will be
             // passed as input in the Flink map function
-            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false);
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, inOwner, "valueOf", inDesc, false);
             // call Flink map function
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "uk/ac/manchester/tornado/examples/FlinkMapUDF$Flink", "map", "(Ljava/lang/Integer;)Ljava/lang/Integer;");
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, userClassName, "map", descFunc);
             // intValue transforms the output of the Flink function, which is an Integer, to
             // int
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Integer", "intValue", "()I", false);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, outOwner, outName, outDesc, false);
             // store output in out[i]
-            mv.visitInsn(Opcodes.IASTORE);
+            mv.visitInsn(GASTORE);
             // this label is to mark the last instruction corresponding to the scope of
             // variable fudf
             mv.visitLabel(endLabel);
             // this is the call that actually creates fudf
-            mv.visitLocalVariable("fudf", "Luk/ac/manchester/tornado/examples/FlinkMapUDF$Flink;", null, startLabel, endLabel, udf);
+            mv.visitLocalVariable("fudf", "L" + userClassName + ";", null, startLabel, endLabel, udf);
             super.visitIincInsn(var, increment);
         }
 
@@ -110,13 +111,132 @@ public class TestFlinkASM {
 
     }
 
+    private static class FlinkClassVisitor extends ClassVisitor {
+        public FlinkClassVisitor() {
+            super(Opcodes.ASM5);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+            if (exceptions == null) {
+                functionType = name;
+                descFunc = desc;
+            }
+            return super.visitMethod(access, name, desc, signature, exceptions);
+        }
+    }
+
     // This variable will store the altered method and will be passed directly to
     // the addTask of the TornadoTaskSchedule class
     public static Method meth;
+    // we should be able to get this by Flink
+    public static String userClassName = "uk/ac/manchester/tornado/examples/FlinkMapUDF$Flink";
+    // Type of function that user class contains, i.e. map, reduce etc...
+    public static String functionType;
+    // description of udf
+    public static String descFunc;
+    // (I | D | L | F)ALOAD
+    public static int GALOAD;
+    // (I | D | L | F)ASTORE
+    public static int GASTORE;
+    // descriptor that helps us call the correct function from the skeleton
+    public static String skeletonMapDesc;
+    // for valueOf
+    public static String inOwner;
+    public static String inDesc;
+    // for (long | double | int | float)value
+    public static String outOwner;
+    public static String outName;
+    public static String outDesc;
+    // variable to help us call the appropriate tornado map method
+    public static String tornadoMapMethod;
+
+    public static void setTypeVariablesMap() throws Exception {
+        String delims = "()";
+        StringTokenizer tok = new StringTokenizer(descFunc, delims);
+        String argType;
+        String returnType;
+        String[] types = new String[2];
+        int i = 0;
+        while (tok.hasMoreElements()) {
+            types[i] = (String) tok.nextElement();
+            i++;
+        }
+        argType = types[0];
+        returnType = types[1];
+        // set everything related to the argument type
+        if (argType.contains("Integer")) {
+            GALOAD = Opcodes.IALOAD;
+            inOwner = "java/lang/Integer";
+            inDesc = "(I)Ljava/lang/Integer;";
+            skeletonMapDesc = "[I";
+            tornadoMapMethod = "int[],";
+        } else if (argType.contains("Double")) {
+            GALOAD = Opcodes.DALOAD;
+            inOwner = "java/lang/Double";
+            inDesc = "(D)Ljava/lang/Double;";
+            skeletonMapDesc = "[D";
+            tornadoMapMethod = "double[],";
+        } else if (argType.contains("Long")) {
+            GALOAD = Opcodes.LALOAD;
+            inOwner = "java/lang/Long";
+            inDesc = "(J)Ljava/lang/Long;";
+            skeletonMapDesc = "[J";
+            tornadoMapMethod = "long[],";
+        } else if (argType.contains("Float")) {
+            GALOAD = Opcodes.FALOAD;
+            inOwner = "java/lang/Float";
+            inDesc = "(F)Ljava/lang/Float;";
+            skeletonMapDesc = "[F";
+            tornadoMapMethod = "float[],";
+        } else {
+            throw new Exception("Argument type " + argType + " not implemented yet");
+        }
+        // set everything related to the return type
+        if (returnType.contains("Integer")) {
+            GASTORE = Opcodes.IASTORE;
+            outOwner = "java/lang/Integer";
+            outName = "intValue";
+            outDesc = "()I";
+            skeletonMapDesc = skeletonMapDesc + "[I";
+            tornadoMapMethod = tornadoMapMethod + "int[]";
+        } else if (returnType.contains("Double")) {
+            GASTORE = Opcodes.DASTORE;
+            outOwner = "java/lang/Double";
+            outName = "doubleValue";
+            outDesc = "()D";
+            skeletonMapDesc = skeletonMapDesc + "[D";
+            tornadoMapMethod = tornadoMapMethod + "double[]";
+        } else if (returnType.contains("Long")) {
+            GASTORE = Opcodes.LASTORE;
+            outOwner = "java/lang/Long";
+            outName = "longValue";
+            outDesc = "()J";
+            skeletonMapDesc = skeletonMapDesc + "[J";
+            tornadoMapMethod = tornadoMapMethod + "long[]";
+        } else if (returnType.contains("Float")) {
+            GASTORE = Opcodes.FASTORE;
+            outOwner = "java/lang/Float";
+            outName = "floatValue";
+            outDesc = "()F";
+            skeletonMapDesc = skeletonMapDesc + "[F";
+            tornadoMapMethod = tornadoMapMethod + "float[]";
+        } else {
+            throw new Exception("Return type " + returnType + " not implemented yet");
+        }
+    }
 
     public static void main(String[] args) throws IOException {
 
         // ASM work
+        FlinkClassVisitor flinkVisit = new FlinkClassVisitor();
+        ClassReader flinkClassReader = new ClassReader("uk.ac.manchester.tornado.examples.FlinkMapUDF$Flink");
+        flinkClassReader.accept(flinkVisit, 0);
+        try {
+            setTypeVariablesMap();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         ClassReader reader = new ClassReader("uk.ac.manchester.tornado.examples.MapSkeleton");
         ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
         TraceClassVisitor printer = new TraceClassVisitor(writer, new PrintWriter(System.out));
@@ -129,7 +249,12 @@ public class TestFlinkASM {
         Method[] marr = clazz.getDeclaredMethods();
         // this works at the moment because we know that the class only contains one
         // method - the one we want to execute
-        meth = marr[0];
+        for (int i = 0; i < marr.length; i++) {
+            if (marr[i].toString().contains(tornadoMapMethod)) {
+                meth = marr[i];
+            }
+        }
+
         // -------------
 
         int[] in = new int[5];
