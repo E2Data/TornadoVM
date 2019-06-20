@@ -720,6 +720,22 @@
             <artifactId>log4j-core</artifactId>
             <version>2.12.1</version>
         </dependency>
+      <!-- ASM -->
+      <dependency>
+        <groupId>org.ow2.asm</groupId>
+        <artifactId>asm</artifactId>
+        <version>6.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.ow2.asm</groupId>
+        <artifactId>asm-util</artifactId>
+        <version>6.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.ow2.asm</groupId>
+        <artifactId>asm-commons</artifactId>
+        <version>6.2</version>
+      </dependency>
     </dependencies>
     <modules>
         <module>runtime</module>
