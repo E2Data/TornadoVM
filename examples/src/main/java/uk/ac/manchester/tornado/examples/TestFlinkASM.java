@@ -79,16 +79,16 @@ public class TestFlinkASM {
             mv.visitVarInsn(Opcodes.ALOAD, 0);
             // load index i for the in array
             mv.visitVarInsn(Opcodes.ILOAD, 3);
-            // load int stored in in[i]
+            // load value stored in in[i]
             mv.visitInsn(GALOAD);
-            // valueOf gets the int in in[i] and returns the corresponding Integer, which
-            // will be
-            // passed as input in the Flink map function
+            // valueOf gets the primitive value in in[i] and returns the corresponding
+            // object
+            // (Integer, Double..), which will be passed as input in the Flink map function
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, inOwner, "valueOf", inDesc, false);
             // call Flink map function
             mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, userClassName, "map", descFunc);
-            // intValue transforms the output of the Flink function, which is an Integer, to
-            // int
+            // (int|double|..)Value function transforms the output of the Flink function,
+            // which is an object type, to the corresponding primitive
             mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, outOwner, outName, outDesc, false);
             // store output in out[i]
             mv.visitInsn(GASTORE);
@@ -258,7 +258,7 @@ public class TestFlinkASM {
         // -------------
 
         int[] in = new int[5];
-        int[] out = new int[5];
+        double[] out = new double[5];
 
         for (int i = 0; i < in.length; i++) {
             in[i] = i;
