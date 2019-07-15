@@ -14,123 +14,25 @@ import org.objectweb.asm.util.TraceClassVisitor;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.instrument.ClassDefinition;
+import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Random;
 import java.util.StringTokenizer;
+import java.util.stream.IntStream;
 
 public class TestFlinkASM {
 
-    private static class ClassAdapter extends ClassVisitor {
-        public ClassAdapter(ClassVisitor cv) {
-            super(Opcodes.ASM5, cv);
-        }
-
-        @Override
-        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-            MethodVisitor mv = cv.visitMethod(access, name, desc, signature, exceptions);
-            if (name.contains("map") && desc.contains(skeletonMapDesc)) {
-                return new VariableAdapter(access, desc, mv);
-            } else {
-                return mv;
-            }
-        }
-    }
-
-    private static class VariableAdapter extends LocalVariablesSorter {
-        int udf;
-        Label startLabel = new Label();
-        Label endLabel = new Label();
-
-        public VariableAdapter(int access, String desc, MethodVisitor mv) {
-            super(Opcodes.ASM5, access, desc, mv);
-        }
-
-        /**
-         * The method visitCode is called to add the opcodes for the fudf declaration.
-         * The local variable fudf will store an instance of the Flink class. Since
-         * Flink map is an instance method, the creation of this variable is necessary.
-         */
-        @Override
-        public void visitCode() {
-            // get the index for the new variable fudf
-            udf = newLocal(Type.getType("L" + userClassName + ";"));
-            // bytecodes to create -> FlinkMapUDF.Flink fudf = new FlinkMapUDF.Flink();
-            mv.visitTypeInsn(Opcodes.NEW, userClassName);
-            mv.visitInsn(Opcodes.DUP);
-            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, userClassName, "<init>", "()V", false);
-            mv.visitVarInsn(Opcodes.ASTORE, udf);
-            // this label is to mark the first instruction corresponding to the scope of
-            // variable fudf
-            mv.visitLabel(startLabel);
-        }
-
-        /**
-         * The method visitIincInsn is called to add new instructions right before the
-         * index incrementation of the for loop.
-         */
-        @Override
-        public void visitIincInsn(int var, int increment) {
-            // load array out
-            mv.visitVarInsn(Opcodes.ALOAD, 1);
-            // load index i for the out array
-            mv.visitVarInsn(Opcodes.ILOAD, 3);
-            // load fudf
-            mv.visitVarInsn(Opcodes.ALOAD, udf);
-            // load array in
-            mv.visitVarInsn(Opcodes.ALOAD, 0);
-            // load index i for the in array
-            mv.visitVarInsn(Opcodes.ILOAD, 3);
-            // load value stored in in[i]
-            mv.visitInsn(GALOAD);
-            // valueOf gets the primitive value in in[i] and returns the corresponding
-            // object
-            // (Integer, Double..), which will be passed as input in the Flink map function
-            mv.visitMethodInsn(Opcodes.INVOKESTATIC, inOwner, "valueOf", inDesc, false);
-            // call Flink map function
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, userClassName, "map", descFunc);
-            // (int|double|..)Value function transforms the output of the Flink function,
-            // which is an object type, to the corresponding primitive
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, outOwner, outName, outDesc, false);
-            // store output in out[i]
-            mv.visitInsn(GASTORE);
-            // this label is to mark the last instruction corresponding to the scope of
-            // variable fudf
-            mv.visitLabel(endLabel);
-            // this is the call that actually creates fudf
-            mv.visitLocalVariable("fudf", "L" + userClassName + ";", null, startLabel, endLabel, udf);
-            super.visitIincInsn(var, increment);
-        }
-
-        @Override
-        public void visitMaxs(int maxStack, int maxLocals) {
-            // maxStack is computed automatically due to the COMPUTE_MAXS argument in the
-            // ClassWriter
-            // maxLocals is incremented by one because we have created on new local
-            // variable, fudf
-            super.visitMaxs(maxStack, maxLocals + 1);
-        }
-
-    }
-
-    private static class FlinkClassVisitor extends ClassVisitor {
-        public FlinkClassVisitor() {
-            super(Opcodes.ASM5);
-        }
-
-        @Override
-        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-            if (exceptions == null) {
-                functionType = name;
-                descFunc = desc;
-            }
-            return super.visitMethod(access, name, desc, signature, exceptions);
-        }
-    }
-
     // This variable will store the altered method and will be passed directly to
     // the addTask of the TornadoTaskSchedule class
-    public static Method meth;
+    public static Method meth = null;
+
     // we should be able to get this by Flink
     public static String userClassName = "uk/ac/manchester/tornado/examples/FlinkMapUDF$Flink";
+    // we should be able to get this by Flink
+    public static String redUserClassName = "uk/ac/manchester/tornado/examples/FlinkReduceUDF$FlinkReduce";
     // Type of function that user class contains, i.e. map, reduce etc...
     public static String functionType;
     // description of udf
@@ -150,6 +52,206 @@ public class TestFlinkASM {
     public static String outDesc;
     // variable to help us call the appropriate tornado map method
     public static String tornadoMapMethod;
+
+    // public static boolean flag = false;
+
+    private static class MapClassAdapter extends ClassVisitor {
+        public MapClassAdapter(ClassVisitor cv) {
+            super(Opcodes.ASM5, cv);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+            MethodVisitor mv = cv.visitMethod(access, name, desc, signature, exceptions);
+            if (name.contains("map") && desc.contains(skeletonMapDesc)) {
+                return new MapMethodAdapter(access, desc, mv);
+            } else {
+                return mv;
+            }
+        }
+    }
+
+    private static class MapMethodAdapter extends LocalVariablesSorter {
+        int udf;
+        Label startLabelMap = new Label();
+        Label endLabelMap = new Label();
+
+        public MapMethodAdapter(int access, String desc, MethodVisitor mv) {
+            super(Opcodes.ASM5, access, desc, mv);
+        }
+
+        /**
+         * The method visitCode is called to add the opcodes for the fudf declaration.
+         * The local variable fudf will store an instance of the Flink class. Since
+         * Flink map is an instance method, the creation of this variable is necessary.
+         */
+        @Override
+        public void visitCode() {
+            // get the index for the new variable fudf
+            udf = newLocal(Type.getType("L" + userClassName + ";"));
+            // bytecodes to create -> FlinkReduceUDF.Flink fudf = new
+            // FlinkReduceUDF.Flink();
+            mv.visitTypeInsn(Opcodes.NEW, userClassName);
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, userClassName, "<init>", "()V", false);
+            mv.visitVarInsn(Opcodes.ASTORE, udf);
+            // this label is to mark the first instruction corresponding to the scope of
+            // variable fudf
+            mv.visitLabel(startLabelMap);
+        }
+
+        /**
+         * The method visitIincInsn is called to add new instructions right before the
+         * index incrementation of the for loop.
+         */
+        @Override
+        public void visitIincInsn(int var, int increment) {
+            // load array out
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            // load index i for the out array
+            mv.visitVarInsn(Opcodes.ILOAD, 3);
+            // load fudf
+            mv.visitVarInsn(Opcodes.ALOAD, udf);
+            // load array in
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            // load index i for the in array
+            mv.visitVarInsn(Opcodes.ILOAD, 3);
+            // load int stored in in[i]
+            mv.visitInsn(GALOAD);
+            // valueOf gets the int in in[i] and returns the corresponding Integer, which
+            // will be
+            // passed as input in the Flink map function
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, inOwner, "valueOf", inDesc, false);
+            // call Flink map function
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, userClassName, "map", descFunc);
+            // intValue transforms the output of the Flink function, which is an Integer, to
+            // int
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, outOwner, outName, outDesc, false);
+            // store output in out[i]
+            mv.visitInsn(GASTORE);
+            // this label is to mark the last instruction corresponding to the scope of
+            // variable fudf
+            mv.visitLabel(endLabelMap);
+            // this is the call that actually creates fudf
+            mv.visitLocalVariable("fudf", "L" + userClassName + ";", null, startLabelMap, endLabelMap, udf);
+            super.visitIincInsn(var, increment);
+        }
+
+        @Override
+        public void visitMaxs(int maxStack, int maxLocals) {
+            // maxStack is computed automatically due to the COMPUTE_MAXS argument in the
+            // ClassWriter
+            // maxLocals is incremented by one because we have created on new local
+            // variable, fudf
+            super.visitMaxs(maxStack, maxLocals + 1);
+        }
+
+    }
+
+    // Reduce Adaptors/Readers/Writers
+    private static class ReduceClassAdapter extends ClassVisitor {
+        public ReduceClassAdapter(ClassVisitor cv) {
+            super(Opcodes.ASM5, cv);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+            MethodVisitor mv = cv.visitMethod(access, name, desc, signature, exceptions);
+            if (name.contains("reduce") && desc.contains("[D[D")) {
+                return new ReduceMethodAdapter(access, desc, mv);
+            } else {
+                return mv;
+            }
+        }
+    }
+
+    private static class ReduceMethodAdapter extends LocalVariablesSorter {
+        int udf;
+        Label startLabelRed = new Label();
+        Label endLabelRed = new Label();
+
+        public ReduceMethodAdapter(int access, String desc, MethodVisitor mv) {
+            super(Opcodes.ASM5, access, desc, mv);
+        }
+
+        /**
+         * The method visitCode is called to add the opcodes for the fudf declaration.
+         * The local variable fudf will store an instance of the Flink class. Since
+         * Flink map is an instance method, the creation of this variable is necessary.
+         */
+        @Override
+        public void visitCode() {
+            // get the index for the new variable fudf
+            udf = newLocal(Type.getType("L" + redUserClassName + ";"));
+            // bytecodes to create -> FlinkMapUDF.Flink fudf = new FlinkMapUDF.Flink();
+            mv.visitTypeInsn(Opcodes.NEW, redUserClassName);
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, redUserClassName, "<init>", "()V", false);
+            mv.visitVarInsn(Opcodes.ASTORE, udf);
+            // this label is to mark the first instruction corresponding to the scope of
+            // variable fudf
+            mv.visitLabel(startLabelRed);
+        }
+
+        /**
+         * The method visitIincInsn is called to add new instructions right before the
+         * index incrementation of the for loop.
+         */
+        @Override
+        public void visitIincInsn(int var, int increment) {
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitInsn(Opcodes.ICONST_0);
+            mv.visitInsn(Opcodes.DUP2);
+            mv.visitInsn(Opcodes.DALOAD);
+            mv.visitVarInsn(Opcodes.ALOAD, udf);
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitVarInsn(Opcodes.ILOAD, 3);
+            mv.visitInsn(Opcodes.DALOAD);
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Double", "valueOf", "(D)Ljava/lang/Double;", false);
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitInsn(Opcodes.ICONST_0);
+            mv.visitInsn(Opcodes.DALOAD);
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/Double", "valueOf", "(D)Ljava/lang/Double;", false);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "uk/ac/manchester/tornado/examples/FlinkReduceUDF$FlinkReduce", "reduce", "(Ljava/lang/Double;Ljava/lang/Double;)Ljava/lang/Double;");
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Double", "doubleValue", "()D", false);
+            mv.visitInsn(Opcodes.DADD);
+            mv.visitInsn(Opcodes.DASTORE);
+            super.visitIincInsn(var, increment);
+        }
+
+        @Override
+        public void visitEnd() {
+            mv.visitLabel(endLabelRed);
+            mv.visitLocalVariable("fudf", "L" + redUserClassName + ";", null, startLabelRed, endLabelRed, udf);
+            mv.visitEnd();
+        }
+
+        @Override
+        public void visitMaxs(int maxStack, int maxLocals) {
+            // maxStack is computed automatically due to the COMPUTE_MAXS argument in the
+            // ClassWriter
+            // maxLocals is incremented by one because we have created on new local
+            // variable, fudf
+            super.visitMaxs(maxStack, maxLocals + 1);
+        }
+
+    }
+    // ===============================
+
+    private static class FlinkClassVisitor extends ClassVisitor {
+        public FlinkClassVisitor() {
+            super(Opcodes.ASM5);
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+            if (exceptions == null) {
+                functionType = name;
+                descFunc = desc;
+            }
+            return super.visitMethod(access, name, desc, signature, exceptions);
+        }
+    }
 
     public static void setTypeVariablesMap() throws Exception {
         String delims = "()";
@@ -226,9 +328,11 @@ public class TestFlinkASM {
         }
     }
 
+    public static byte b2[];
+
     public static void main(String[] args) throws IOException {
 
-        // ASM work
+        // ASM work for map
         FlinkClassVisitor flinkVisit = new FlinkClassVisitor();
         ClassReader flinkClassReader = new ClassReader("uk.ac.manchester.tornado.examples.FlinkMapUDF$Flink");
         flinkClassReader.accept(flinkVisit, 0);
@@ -240,15 +344,15 @@ public class TestFlinkASM {
         ClassReader reader = new ClassReader("uk.ac.manchester.tornado.examples.MapSkeleton");
         ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
         TraceClassVisitor printer = new TraceClassVisitor(writer, new PrintWriter(System.out));
-        ClassAdapter adapter = new ClassAdapter(printer);
+        MapClassAdapter adapter = new MapClassAdapter(writer);
         reader.accept(adapter, ClassReader.EXPAND_FRAMES);
         byte[] b = writer.toByteArray();
         classLoader cl = new classLoader();
         String classname = "uk.ac.manchester.tornado.examples.MapSkeleton";
         Class clazz = cl.defineClass(classname, b);
+
         Method[] marr = clazz.getDeclaredMethods();
-        // this works at the moment because we know that the class only contains one
-        // method - the one we want to execute
+
         for (int i = 0; i < marr.length; i++) {
             if (marr[i].toString().contains(tornadoMapMethod)) {
                 meth = marr[i];
@@ -258,23 +362,59 @@ public class TestFlinkASM {
         // -------------
 
         int[] in = new int[5];
-        double[] out = new double[5];
+        int[] out = new int[5];
 
         for (int i = 0; i < in.length; i++) {
             in[i] = i;
         }
-
         TaskSchedule tt = new TaskSchedule("st").task("t0", MapSkeleton::map, in, out).streamOut(out);
         tt.execute();
-
         for (int i = 0; i < out.length; i++) {
             System.out.println("out[" + i + "] = " + out[i]);
         }
+        meth = null;
+
+        // ASM work for reduce
+        ClassReader readerRed = new ClassReader("uk.ac.manchester.tornado.examples.ReduceSkeleton");
+        ClassWriter writerRed = new ClassWriter(readerRed, ClassWriter.COMPUTE_MAXS);
+        TraceClassVisitor printerRed = new TraceClassVisitor(writerRed, new PrintWriter(System.out));
+        // to remove debugging info, just replace the printer in class adapter call with
+        // the writer
+        ReduceClassAdapter adapterRed = new ReduceClassAdapter(writerRed);
+        readerRed.accept(adapterRed, ClassReader.EXPAND_FRAMES);
+
+        byte[] b2 = writerRed.toByteArray();
+        Class clazz2 = cl.defineClass("uk.ac.manchester.tornado.examples.ReduceSkeleton", b2);
+        Method[] rarr = clazz2.getDeclaredMethods();
+        meth = rarr[0];
+
+        double[] input = new double[32];
+        double[] result = new double[1];
+
+        Random rand = new Random();
+        IntStream.range(0, 32).parallel().forEach(i -> {
+            input[i] = rand.nextDouble();
+        });
+
+        for (int i = 0; i < input.length; i++) {
+            System.out.print(input[i] + "+");
+        }
+
+        TaskSchedule task = new TaskSchedule("s0").task("t0", ReduceSkeleton::reduce, input, result).streamOut(result);
+        task.execute();
+        System.out.println("\nresult= " + result[0]);
+
     }
+
 }
 
-class classLoader extends ClassLoader {
-    public Class defineClass(String name, byte[] b) {
-        return defineClass(name, b, 0, b.length);
+class classLoader<T> extends ClassLoader {
+
+    public classLoader() {
+        super();
+    }
+
+    public Class<T> defineClass(String name, byte[] b) {
+        return (Class<T>) defineClass(name, b, 0, b.length);
     }
 }
