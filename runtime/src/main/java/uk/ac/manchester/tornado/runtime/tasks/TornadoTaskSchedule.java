@@ -1394,9 +1394,13 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
         int type = taskPackage.getTaskType();
         Object[] parameters = taskPackage.getTaskParameters();
 
-        // Method method = TaskUtils.resolveMethodHandle(parameters[0]);
-        // Pass the altered map function
-        Method method = TestFlinkASM.meth;
+        Method method;
+        if (TestFlinkASM.meth != null) {
+            method = TestFlinkASM.meth;
+        } else {
+            method = TaskUtils.resolveMethodHandle(parameters[0]);
+        }
+
         ScheduleMetaData meta = meta();
 
         // Set the number of threads to run. If 0, it will execute as many
