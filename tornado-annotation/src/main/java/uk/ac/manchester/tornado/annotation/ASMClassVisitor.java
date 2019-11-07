@@ -31,7 +31,7 @@ public class ASMClassVisitor extends ClassVisitor implements ASMClassVisitorProv
     private ResolvedJavaMethod resolvedJavaMethod;
 
     public ASMClassVisitor() {
-        super(Opcodes.ASM7);
+        super(Opcodes.ASM6);
     }
 
     public ASMClassVisitor(int i, ClassVisitor classVisitor, ResolvedJavaMethod resolvedJavaMethod) {
@@ -55,7 +55,7 @@ public class ASMClassVisitor extends ClassVisitor implements ASMClassVisitorProv
         try {
             ClassReader classReader = new ClassReader(inputStream);
             ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            ASMClassVisitor visitor = new ASMClassVisitor(Opcodes.ASM7, cw, method);
+            ASMClassVisitor visitor = new ASMClassVisitor(Opcodes.ASM6, cw, method);
             classReader.accept(visitor, 0);
 
             ParallelAnnotationProvider[] parallelAnnotation = new ParallelAnnotationProvider[visitor.parallelAnnotations.size()];
