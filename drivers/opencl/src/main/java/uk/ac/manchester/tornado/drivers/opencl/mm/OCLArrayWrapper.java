@@ -191,6 +191,10 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
      */
     abstract protected int enqueueReadArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
 
+    public static boolean tornado;
+
+    public static byte[] flinkData;
+
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
         final T array = cast(value);
@@ -211,7 +215,12 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
             } else {
                 headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
             }
-            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            if (tornado) {
+                // final T flinkArray = cast(flinkData);
+                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, flinkData, hostOffset, (useDeps) ? events : null);
+            } else {
+                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            }
             onDevice = true;
             // returnEvent = deviceContext.enqueueMarker(internalEvents);
 
@@ -238,6 +247,10 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
      * @return Event information
      */
     abstract protected int enqueueWriteArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
+
+    protected int enqueueWriteArrayData(long bufferId, long offset, long bytes, byte[] value, long hostOffset, int[] waitEvents) {
+        return deviceContext.enqueueWriteBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
+    }
 
     @Override
     public int getAlignment() {
