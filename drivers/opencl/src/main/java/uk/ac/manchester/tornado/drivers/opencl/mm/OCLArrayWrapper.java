@@ -34,6 +34,8 @@ import static uk.ac.manchester.tornado.runtime.common.Tornado.getProperty;
 import static uk.ac.manchester.tornado.runtime.common.Tornado.info;
 
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -191,43 +193,50 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
      */
     abstract protected int enqueueReadArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
 
-    public static boolean tornado;
+    public static boolean flinkTornado;
 
     public static byte[] flinkData;
 
+    public static long flinkOffset;
+
+    public static int flinkBytesToAllocate;
+
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
+
         final T array = cast(value);
         ArrayList<Integer> listEvents = new ArrayList<>();
-
-        if (array == null) {
-            throw new TornadoRuntimeException("ERROR] Data to be copied is NULL");
-        }
-        final int returnEvent;
-        if (isFinal && onDevice) {
-            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
-        } else {
-            // We first write the header for the object and then we write actual
-            // buffer
-            final int headerEvent;
-            if (batchSize <= 0) {
-                headerEvent = buildArrayHeader(Array.getLength(array)).enqueueWrite((useDeps) ? events : null);
-            } else {
-                headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
+        try {
+            if (array == null) {
+                throw new TornadoRuntimeException("ERROR] Data to be copied is NULL");
             }
-            if (tornado) {
-                // final T flinkArray = cast(flinkData);
-                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, flinkData, hostOffset, (useDeps) ? events : null);
-            } else {
+            final int returnEvent;
+            if (isFinal && onDevice) {
                 returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
-            }
-            onDevice = true;
-            // returnEvent = deviceContext.enqueueMarker(internalEvents);
+            } else {
+                // We first write the header for the object and then we write actual
+                // buffer
+                final int headerEvent;
+                if (batchSize <= 0) {
+                    headerEvent = buildArrayHeader(Array.getLength(array)).enqueueWrite((useDeps) ? events : null);
+                } else {
+                    headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
+                }
+                if (flinkTornado) {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize + flinkOffset, flinkBytesToAllocate, flinkData, hostOffset, (useDeps) ? events : null);
+                } else {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+                }
+                onDevice = true;
+                // returnEvent = deviceContext.enqueueMarker(internalEvents);
 
-            listEvents.add(headerEvent);
-            listEvents.add(returnEvent);
+                listEvents.add(headerEvent);
+                listEvents.add(returnEvent);
+            }
+            return useDeps ? listEvents : null;
+        } catch (Exception e) {
+            return listEvents;
         }
-        return useDeps ? listEvents : null;
     }
 
     /**
