@@ -223,7 +223,7 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                     headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
                 }
                 if (flinkTornado) {
-                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize + flinkOffset, flinkBytesToAllocate, flinkData, hostOffset, (useDeps) ? events : null);
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
                 } else {
                     returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
                 }
