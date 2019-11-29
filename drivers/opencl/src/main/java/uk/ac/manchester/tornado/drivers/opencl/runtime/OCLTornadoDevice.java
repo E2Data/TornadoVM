@@ -380,7 +380,8 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
         } else if (type == char[].class) {
             result = new OCLCharArrayWrapper(device, batchSize);
         } else {
-            TornadoInternalError.unimplemented("array of type %s", type.getName());
+            result = new OCLByteArrayWrapper(device, batchSize);
+            // TornadoInternalError.unimplemented("array of type %s", type.getName());
         }
         return result;
     }
