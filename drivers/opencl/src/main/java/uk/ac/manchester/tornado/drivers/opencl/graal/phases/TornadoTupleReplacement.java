@@ -1,14 +1,19 @@
 package uk.ac.manchester.tornado.drivers.opencl.graal.phases;
 
+import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaField;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaType;
+import jdk.vm.ci.meta.PrimitiveConstant;
+import jdk.vm.ci.meta.RawConstant;
 import jdk.vm.ci.meta.ResolvedJavaField;
+import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.nodes.FixedGuardNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.calc.AddNode;
 import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.extended.UnboxNode;
@@ -18,6 +23,7 @@ import org.graalvm.compiler.nodes.java.LoadIndexedNode;
 import org.graalvm.compiler.phases.BasePhase;
 import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.TupleFieldNode;
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
+import org.graalvm.compiler.nodes.ConstantNode;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -183,5 +189,39 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                 }
             }
         }
+
+        // number of bytes to skip
+        Constant cv = new RawConstant(4);
+        ConstantNode c = new ConstantNode(cv, StampFactory.positiveInt());
+        graph.addOrUnique(c);
+        ValuePhiNode ph;
+        AddNode secondIndex = null;
+        for (Node n : graph.getNodes()) {
+            if (n.getNodeClass().toString().contains("ValuePhiNode")) {
+                ph = (ValuePhiNode) n;
+                secondIndex = new AddNode(c, ph);
+                graph.addOrUnique(secondIndex);
+            }
+        }
+
+        // Queue<LoadIndexedNode> LoadIndexed2 = new LinkedList<>();
+        Stack<LoadIndexedNode> LoadIndexedStack = new Stack<>();
+
+        for (Node n : graph.getNodes()) {
+            System.out.println("* Node " + n.getNodeClass());
+            if (n.getNodeClass().toString().contains("LoadIndexedNode")) {
+                LoadIndexedStack.push((LoadIndexedNode) n);
+            }
+        }
+        if (LoadIndexedStack.size() > 0) {
+            LoadIndexedNode lastLd = LoadIndexedStack.pop();
+            for (Node in : lastLd.inputs()) {
+                if (in.getNodeClass().toString().contains("ValuePhiNode")) {
+                    lastLd.replaceFirstInput(in, secondIndex);
+                }
+            }
+
+        }
+
     }
 }
