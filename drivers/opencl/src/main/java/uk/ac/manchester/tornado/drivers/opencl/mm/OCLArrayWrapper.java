@@ -339,7 +339,11 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
     abstract protected int readArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
 
     private long sizeOf(final T array) {
-        return (long) arrayHeaderSize + ((long) Array.getLength(array) * (long) kind.getByteCount());
+        if (flinkTornado) {
+            return (long) arrayHeaderSize + flinkBytesToAllocate;
+        } else {
+            return (long) arrayHeaderSize + ((long) Array.getLength(array) * (long) kind.getByteCount());
+        }
     }
 
     private long sizeOfBatch(long batchSize) {
@@ -390,7 +394,12 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
 
     @Override
     public void write(final Object value) {
-        final T array = cast(value);
+        final T array;
+        if (flinkTornado) {
+            array = (T) flinkData;
+        } else {
+            array = cast(value);
+        }
         if (array == null) {
             throw new TornadoRuntimeException("[ERROR] data is NULL");
         }
