@@ -58,6 +58,7 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.OCLProviders;
 import uk.ac.manchester.tornado.drivers.opencl.graal.backend.OCLBackend;
 import uk.ac.manchester.tornado.drivers.opencl.graal.compiler.OCLCompilationResult;
 import uk.ac.manchester.tornado.drivers.opencl.graal.compiler.OCLCompiler;
+import uk.ac.manchester.tornado.drivers.opencl.mm.OCLArrayWrapper;
 import uk.ac.manchester.tornado.drivers.opencl.mm.OCLByteArrayWrapper;
 import uk.ac.manchester.tornado.drivers.opencl.mm.OCLByteBuffer;
 import uk.ac.manchester.tornado.drivers.opencl.mm.OCLCharArrayWrapper;
@@ -425,7 +426,11 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
             }
 
         } else if (!type.isPrimitive() && !type.isArray()) {
-            result = new OCLByteArrayWrapper(device, batchSize);// new OCLObjectWrapper(device, arg, batchSize);
+            if (OCLArrayWrapper.flinkTornado) {
+                result = new OCLByteArrayWrapper(device, batchSize);
+            } else {
+                result = new OCLObjectWrapper(device, arg, batchSize);
+            }
         }
 
         TornadoInternalError.guarantee(result != null, "Unable to create buffer for object: " + type);
