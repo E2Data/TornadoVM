@@ -22,27 +22,17 @@ import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
 import java.util.ArrayList;
 
 public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
+
+    public static boolean hasTuples;
+    public static int tupleSize;
+    public static ArrayList<Class> tupleFieldKind;
+    public static Class storeJavaKind;
+
     @Override
     protected void run(StructuredGraph graph, TornadoHighTierContext context) {
-
-        boolean hasTuples = false;
-        // TODO: check if code contains Tuples using the information stored in TypeInfo
-        for (Node n : graph.getNodes()) {
-            if (n instanceof LoadFieldNode) {
-                LoadFieldNode ld = (LoadFieldNode) n;
-                if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
-                    hasTuples = true;
-                }
-
-            }
-        }
-
         if (hasTuples) {
-            // TODO: The constant node's value is fixed to 2 because we are currenly
-            // checking Tuple2 types
-            // TODO cont: make this more generic in the future
-            Constant tupleSize = new RawConstant(2);
-            ConstantNode indexInc = new ConstantNode(tupleSize, StampFactory.positiveInt());
+            Constant tupleSizeConst = new RawConstant(tupleSize);
+            ConstantNode indexInc = new ConstantNode(tupleSizeConst, StampFactory.positiveInt());
             graph.addOrUnique(indexInc);
             ValuePhiNode phNode;
             MulNode indexOffset = null;
@@ -64,24 +54,26 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         for (Node successor : ld.successors()) {
                             if (successor instanceof LoadIndexedNode) {
                                 LoadIndexedNode idx = (LoadIndexedNode) successor;
+                                // Tuples have at least 2 fields
                                 // create loadindexed for the first field (f0) of the tuple
-                                JavaKind jvk = JavaKind.fromJavaClass(int.class);
-                                LoadIndexedNode ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, jvk);
+                                LoadIndexedNode ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
                                 graph.addOrUnique(ldf0);
                                 graph.replaceFixed(idx, ldf0);
                                 loadindxNodes.add(ldf0);
-                                // create nodes to read data for second field of the tuple from the next
-                                // position of the array
-                                Constant nextPosition = new RawConstant(1);
-                                ConstantNode secondIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
-                                graph.addOrUnique(secondIndxOffset);
-                                AddNode secondIndx = new AddNode(secondIndxOffset, indexOffset);
-                                graph.addOrUnique(secondIndx);
-                                // create loadindexed for the second field (f1) of the tuple
-                                LoadIndexedNode ldf1 = new LoadIndexedNode(null, ldf0.array(), secondIndx, jvk);
-                                graph.addOrUnique(ldf1);
-                                graph.addAfterFixed(ldf0, ldf1);
-                                loadindxNodes.add(ldf1);
+                                for (int i = 1; i < tupleSize; i++) {
+                                    // create nodes to read data for next field of the tuple from the next
+                                    // position of the array
+                                    Constant nextPosition = new RawConstant(i);
+                                    ConstantNode nextIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
+                                    graph.addOrUnique(nextIndxOffset);
+                                    AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
+                                    graph.addOrUnique(nextTupleIndx);
+                                    // create loadindexed for the next field of the tuple
+                                    LoadIndexedNode ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                    graph.addOrUnique(ldfn);
+                                    graph.addAfterFixed(ldf0, ldfn);
+                                    loadindxNodes.add(ldfn);
+                                }
                                 break;
                             }
                         }
@@ -107,9 +99,9 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
             for (Node n : graph.getNodes()) {
                 if (n instanceof StoreIndexedNode) {
                     // Node pred = n.predecessor();
-                    JavaKind jvk = JavaKind.fromJavaClass(int.class);
+                    // JavaKind jvk = JavaKind.fromJavaClass(int.class);
                     StoreIndexedNode st = (StoreIndexedNode) n;
-                    StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), jvk, st.value()));
+                    StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(storeJavaKind), st.value()));
                     graph.replaceFixed(st, newst);
                     break;
                 }
@@ -149,5 +141,19 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
             }
         }
 
+    }
+
+    private static JavaKind getJavaKind(String jvkd) {
+        if (jvkd.equals("Integer")) {
+            return JavaKind.fromJavaClass(int.class);
+        } else if (jvkd.equals("Double")) {
+            return JavaKind.fromJavaClass(double.class);
+        } else if (jvkd.equals("Float")) {
+            return JavaKind.fromJavaClass(float.class);
+        } else if (jvkd.equals("Long")) {
+            return JavaKind.fromJavaClass(long.class);
+        } else {
+            return null;
+        }
     }
 }
