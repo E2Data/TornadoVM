@@ -125,7 +125,15 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         nodesToDelete.add(n);
                         break;
                     } else {
-                        nodesToDelete.add(n);
+                        boolean inputLdIndx = false;
+                        for (Node inn : n.inputs()) {
+                            if (inn instanceof LoadIndexedNode && !(n instanceof LoadFieldNode)) {
+                                inputLdIndx = true;
+                            }
+                        }
+                        if (!inputLdIndx) {
+                            nodesToDelete.add(n);
+                        }
                     }
                 }
             }
@@ -143,17 +151,4 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
     }
 
-    private static JavaKind getJavaKind(String jvkd) {
-        if (jvkd.equals("Integer")) {
-            return JavaKind.fromJavaClass(int.class);
-        } else if (jvkd.equals("Double")) {
-            return JavaKind.fromJavaClass(double.class);
-        } else if (jvkd.equals("Float")) {
-            return JavaKind.fromJavaClass(float.class);
-        } else if (jvkd.equals("Long")) {
-            return JavaKind.fromJavaClass(long.class);
-        } else {
-            return null;
-        }
-    }
 }
