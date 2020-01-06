@@ -40,7 +40,12 @@ public class OCLFloatArrayWrapper extends OCLArrayWrapper<float[]> {
 
     @Override
     protected int readArrayData(long bufferId, long offset, long bytes, float[] value, long hostOffset, int[] waitEvents) {
-        return deviceContext.readBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
+        if (OCLArrayWrapper.flinkTornado) {
+            int res = deviceContext.readBuffer(bufferId, offset, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, waitEvents);
+            return res;
+        } else {
+            return deviceContext.readBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
+        }
     }
 
     @Override

@@ -167,11 +167,16 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
         if (array == null) {
             throw new TornadoRuntimeException("[ERROR] output data is NULL");
         }
+
         final int returnEvent;
-        if (isFinal) {
-            returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+        if (flinkTornado) {
+            returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkOutBytesToAllocate, flinkDataOut, hostOffset, (useDeps) ? events : null);
         } else {
-            returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            if (isFinal) {
+                returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            } else {
+                returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            }
         }
         return useDeps ? returnEvent : -1;
     }
@@ -200,6 +205,10 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
     public static long flinkOffset;
 
     public static int flinkBytesToAllocate;
+
+    public static byte[] flinkDataOut;
+
+    public static int flinkOutBytesToAllocate;
 
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
@@ -237,6 +246,10 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
         } catch (Exception e) {
             return listEvents;
         }
+    }
+
+    protected int enqueueReadArrayData(long bufferId, long offset, long bytes, byte[] value, long hostOffset, int[] waitEvents) {
+        return deviceContext.enqueueReadBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
     }
 
     /**
