@@ -34,7 +34,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
     public static int tupleSize;
     public static ArrayList<Class> tupleFieldKind;
     public static Class storeJavaKind;
-    public static boolean returnTuple = true;
+    public static boolean returnTuple;
 
     @Override
     protected void run(StructuredGraph graph, TornadoHighTierContext context) {
@@ -70,17 +70,9 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                 if (alloc) {
                     for (Node n : graph.getNodes()) {
                         if (n instanceof StoreIndexedNode) {
-                            // Node pred = n.predecessor();
-                            // JavaKind jvk = JavaKind.fromJavaClass(int.class);
                             StoreIndexedNode st = (StoreIndexedNode) n;
                             StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(int.class), storeTupleInputs.get(0)));
                             storesWithInputs.put(storeTupleInputs.get(0), newst);
-                            // Constant nextPosition = new RawConstant(1);
-                            // ConstantNode nextRetIndxOffset = new ConstantNode(nextPosition,
-                            // StampFactory.positiveInt());
-                            // graph.addOrUnique(nextRetIndxOffset);
-                            // AddNode nextRetTupleIndx = new AddNode(nextRetIndxOffset, retIndexOf);
-                            // graph.addOrUnique(nextRetTupleIndx);
                             StoreIndexedNode newst2 = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(int.class), storeTupleInputs.get(1)));
                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                             graph.replaceFixed(st, newst);
@@ -94,9 +86,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                     for (Node n : graph.getNodes()) {
                         if (n instanceof CommitAllocationNode) {
                             Node predAlloc = n.predecessor();
-                            // n.replaceAndDelete(predAlloc);
                             for (Node sucAlloc : n.successors()) {
-                                // sucAlloc.replaceAtPredecessor(predAlloc);
                                 predAlloc.replaceFirstSuccessor(n, sucAlloc);
                             }
                             n.safeDelete();
@@ -120,7 +110,6 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 // create loadindexed for the first field (f0) of the tuple
                                 LoadIndexedNode ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
                                 graph.addOrUnique(ldf0);
-                                // ldf0.replaceAtUsages(idx);
                                 graph.replaceFixed(idx, ldf0);
                                 loadindxNodes.add(ldf0);
                                 for (int i = 1; i < tupleSize; i++) {
@@ -146,30 +135,32 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
             }
 
-            HashMap<LoadFieldNode, LoadIndexedNode> fieldToIndex = new HashMap<>();
+            if (returnTuple) {
+                HashMap<LoadFieldNode, LoadIndexedNode> fieldToIndex = new HashMap<>();
 
-            int j = 0;
-            for (Node n : graph.getNodes()) {
-                if (n instanceof LoadFieldNode) {
-                    LoadFieldNode ld = (LoadFieldNode) n;
-                    if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
-                        fieldToIndex.put(ld, loadindxNodes.get(j));
-                        j++;
+                int j = 0;
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof LoadFieldNode) {
+                        LoadFieldNode ld = (LoadFieldNode) n;
+                        if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
+                            fieldToIndex.put(ld, loadindxNodes.get(j));
+                            j++;
+                        }
                     }
                 }
-            }
 
-            for (Node n : storesWithInputs.keySet()) {
-                if (fieldToIndex.containsKey(n)) {
-                    StoreIndexedNode st = storesWithInputs.get(n);
-                    st.replaceFirstInput(n, fieldToIndex.get(n));
+                for (Node n : storesWithInputs.keySet()) {
+                    if (fieldToIndex.containsKey(n)) {
+                        StoreIndexedNode st = storesWithInputs.get(n);
+                        st.replaceFirstInput(n, fieldToIndex.get(n));
+                    }
                 }
-            }
 
-            int k = 0;
-            for (StoreIndexedNode st : storesWithInputs.values()) {
-                st.replaceFirstInput(st.index(), loadindxNodes.get(k).index());
-                k++;
+                int k = 0;
+                for (StoreIndexedNode st : storesWithInputs.values()) {
+                    st.replaceFirstInput(st.index(), loadindxNodes.get(k).index());
+                    k++;
+                }
             }
 
             // set usages of unbox nodes to field nodes
@@ -180,6 +171,19 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                 if (n instanceof UnboxNode) {
                     n.replaceAtUsages(loadindxNodes.get(i));
                     i++;
+                }
+            }
+
+            if (!returnTuple) {
+                // replace storeindexednode with a new storeindexednode that has the appropriate
+                // javakind
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof StoreIndexedNode) {
+                        StoreIndexedNode st = (StoreIndexedNode) n;
+                        StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(storeJavaKind), st.value()));
+                        graph.replaceFixed(st, newst);
+                        break;
+                    }
                 }
             }
 
@@ -213,35 +217,37 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
             }
 
-            for (Node n : nodesToDelete) {
-                System.out.println(" ==== Delete " + n.getNodeClass());
-            }
-
             // delete nodes associated with Tuples
             for (Node n : nodesToDelete) {
                 if (n.successors().first() instanceof StoreIndexedNode) {
-                    // UnboxNode un = (UnboxNode) n;
-                    // BoxNode b = (BoxNode) n;
-                    pred.replaceFirstSuccessor(pred.successors().first(), n);
-                    // graph.replaceFixed(b, pred);
+                    if (returnTuple) {
+                        pred.replaceFirstSuccessor(pred.successors().first(), n);
+                    } else {
+                        UnboxNode un = (UnboxNode) n;
+                        graph.replaceFixed(un, pred);
+                    }
                 } else if (n instanceof ConstantNode) {
                     System.out.println("Do not delete constant!!!!");
+                } else if (n instanceof BoxNode) {
+                    for (Node u : n.usages()) {
+                        u.replaceFirstInput(n, n.inputs().first());
+                    }
+                    n.safeDelete();
                 } else {
                     n.safeDelete();
                 }
             }
 
-            for (Node n : graph.getNodes()) {
-                if (n instanceof BoxNode) {
-                    for (Node u : n.usages()) {
-                        // usage = store
-                        System.out.println("------- Box usages: " + u.getNodeClass() + " usage input: " + u.inputs().first());
-                        u.replaceFirstInput(n, n.inputs().first());
+            if (returnTuple) {
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof BoxNode) {
+                        for (Node u : n.usages()) {
+                            u.replaceFirstInput(n, n.inputs().first());
+                        }
+                        Node boxPred = n.predecessor();
+                        boxPred.replaceFirstSuccessor(n, n.successors().first());
+                        n.safeDelete();
                     }
-                    Node boxPred = n.predecessor();
-                    boxPred.replaceFirstSuccessor(n, n.successors().first());
-                    n.safeDelete();
-                    // break;
                 }
             }
         }
