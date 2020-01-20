@@ -39,19 +39,27 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
     @Override
     protected void run(StructuredGraph graph, TornadoHighTierContext context) {
         if (hasTuples) {
-            Constant tupleSizeConst = new RawConstant(tupleSize);
-            ConstantNode indexInc = new ConstantNode(tupleSizeConst, StampFactory.positiveInt());
-            graph.addOrUnique(indexInc);
-            ValuePhiNode phNode;
+            ValuePhiNode ldIndx = null;
             MulNode indexOffset = null;
-            for (Node n : graph.getNodes()) {
-                if (n instanceof ValuePhiNode) {
-                    phNode = (ValuePhiNode) n;
-                    indexOffset = new MulNode(indexInc, phNode);
-                    graph.addOrUnique(indexOffset);
+            if (!TornadoTupleOffset.differentTypes) {
+                Constant tupleSizeConst = new RawConstant(tupleSize);
+                ConstantNode indexInc = new ConstantNode(tupleSizeConst, StampFactory.positiveInt());
+                graph.addOrUnique(indexInc);
+                ValuePhiNode phNode = null;
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof ValuePhiNode) {
+                        phNode = (ValuePhiNode) n;
+                        indexOffset = new MulNode(indexInc, phNode);
+                        graph.addOrUnique(indexOffset);
+                    }
+                }
+            } else {
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof ValuePhiNode) {
+                        ldIndx = (ValuePhiNode) n;
+                    }
                 }
             }
-
             ArrayList<ValueNode> storeTupleInputs = new ArrayList<>();
             LinkedHashMap<ValueNode, StoreIndexedNode> storesWithInputs = new LinkedHashMap<>();
             boolean alloc = false;
@@ -108,20 +116,30 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 LoadIndexedNode idx = (LoadIndexedNode) successor;
                                 // Tuples have at least 2 fields
                                 // create loadindexed for the first field (f0) of the tuple
-                                LoadIndexedNode ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
+                                LoadIndexedNode ldf0;
+                                if (TornadoTupleOffset.differentTypes) {
+                                    ldf0 = new LoadIndexedNode(null, idx.array(), ldIndx, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
+                                } else {
+                                    ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
+                                }
                                 graph.addOrUnique(ldf0);
                                 graph.replaceFixed(idx, ldf0);
                                 loadindxNodes.add(ldf0);
                                 for (int i = 1; i < tupleSize; i++) {
                                     // create nodes to read data for next field of the tuple from the next
                                     // position of the array
-                                    Constant nextPosition = new RawConstant(i);
-                                    ConstantNode nextIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
-                                    graph.addOrUnique(nextIndxOffset);
-                                    AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
-                                    graph.addOrUnique(nextTupleIndx);
-                                    // create loadindexed for the next field of the tuple
-                                    LoadIndexedNode ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                    LoadIndexedNode ldfn;
+                                    if (TornadoTupleOffset.differentTypes) {
+                                        ldfn = new LoadIndexedNode(null, ldf0.array(), ldIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                    } else {
+                                        Constant nextPosition = new RawConstant(i);
+                                        ConstantNode nextIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
+                                        graph.addOrUnique(nextIndxOffset);
+                                        AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
+                                        graph.addOrUnique(nextTupleIndx);
+                                        // create loadindexed for the next field of the tuple
+                                        ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                    }
                                     graph.addOrUnique(ldfn);
                                     graph.addAfterFixed(ldf0, ldfn);
                                     loadindxNodes.add(ldfn);
