@@ -21,12 +21,11 @@ import java.util.ArrayList;
 public class TornadoTupleOffset extends Phase {
 
     public static boolean differentTypes = false;
+    public static ArrayList<Integer> fieldSizes = new ArrayList<>();
 
     @Override
     protected void run(StructuredGraph graph) {
         if (differentTypes) {
-            int sizeOfF0 = 4;
-            int sizeOfF1 = 8;
 
             ArrayList<OCLAddressNode> readAddressNodes = new ArrayList<>();
             for (Node n : graph.getNodes()) {
@@ -59,13 +58,13 @@ public class TornadoTupleOffset extends Phase {
             }
             Constant firstOffset;
             ConstantNode firstConstOffset;
-            firstOffset = new RawConstant(sizeOfF0);
+            firstOffset = new RawConstant(fieldSizes.get(0));
             firstConstOffset = new ConstantNode(firstOffset, StampFactory.forKind(JavaKind.Byte));
             graph.addOrUnique(firstConstOffset);
 
             Constant secondOffset;
             ConstantNode secondConstOffset;
-            secondOffset = new RawConstant(sizeOfF1);
+            secondOffset = new RawConstant(fieldSizes.get(1));
             secondConstOffset = new ConstantNode(secondOffset, StampFactory.forKind(JavaKind.Byte));
             graph.addOrUnique(secondConstOffset);
 
