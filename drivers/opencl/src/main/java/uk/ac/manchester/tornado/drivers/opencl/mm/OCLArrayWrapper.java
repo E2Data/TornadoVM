@@ -344,12 +344,21 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                 shouldNotReachHere("Array header is invalid");
             }
         } else {
-            return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            if (flinkTornado) {
+                return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, (useDeps) ? events : null);
+            } else {
+                return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+            }
         }
         return -1;
     }
 
     abstract protected int readArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
+
+    protected int readArrayData(long bufferId, long offset, long bytes, byte[] value, long hostOffset, int[] waitEvents) {
+        int res = deviceContext.readBuffer(bufferId, offset, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, waitEvents);
+        return res;
+    }
 
     private long sizeOf(final T array) {
         if (flinkTornado) {

@@ -491,6 +491,7 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
     public void streamOutInner(Object... objects) {
         for (Object object : objects) {
             if (object == null) {
+                graphContext.getObjectState(object).setStreamOut(true);
                 warn("null object passed into streamIn() in schedule %s", graphContext.getId());
                 continue;
             }

@@ -85,8 +85,14 @@ public class TornadoExecutionContext {
         return stacks;
     }
 
+    public static int streamOutPos;
+
     public int insertVariable(Object var) {
         int index = -1;
+        if (var == null) {
+            index = streamOutPos;
+            return index;
+        }
         if (var.getClass().isPrimitive() || RuntimeUtilities.isBoxedPrimitiveClass(var.getClass())) {
             index = constants.indexOf(var);
             if (index == -1) {
