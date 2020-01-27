@@ -135,7 +135,12 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 graph.addWithoutUnique(retNextIndxOffsetF3);
                                 AddNode nextRetTupleIndxF3 = new AddNode(retNextIndxOffsetF3, returnIndexOffset);
                                 graph.addWithoutUnique(nextRetTupleIndxF3);
-                                StoreIndexedNode newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(2)));
+                                StoreIndexedNode newst3;
+                                if (TornadoTupleOffset.differentTypesRet) {
+                                    newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(double.class), storeTupleInputs.get(2)));
+                                } else {
+                                    newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(2)));
+                                }
                                 storesWithInputs.put(storeTupleInputs.get(2), newst3);
                                 // graph.replaceFixed(st, newst);
                                 graph.addAfterFixed(newst2, newst3);
