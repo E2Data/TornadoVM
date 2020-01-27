@@ -26,7 +26,6 @@ import org.graalvm.compiler.nodes.ConstantNode;
 
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -47,13 +46,13 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
             // if (!TornadoTupleOffset.differentTypes) {
             Constant tupleSizeConst = new RawConstant(tupleSize);
             ConstantNode indexInc = new ConstantNode(tupleSizeConst, StampFactory.positiveInt());
-            graph.addOrUnique(indexInc);
+            graph.addWithoutUnique(indexInc);
             ValuePhiNode phNode = null;
             for (Node n : graph.getNodes()) {
                 if (n instanceof ValuePhiNode) {
                     phNode = (ValuePhiNode) n;
                     indexOffset = new MulNode(indexInc, phNode);
-                    graph.addOrUnique(indexOffset);
+                    graph.addWithoutUnique(indexOffset);
                 }
             }
 
@@ -80,17 +79,68 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                     }
                 }
 
+                MulNode returnIndexOffset = null;
+                Constant returnTupleSizeConst = null;
+                // if (!TornadoTupleOffset.differentTypes) {
+                if (storeJavaKind.toString().contains("Tuple3")) {
+                    returnTupleSizeConst = new RawConstant(3);
+                } else if (storeJavaKind.toString().contains("Tuple2")) {
+                    returnTupleSizeConst = new RawConstant(2);
+                }
+                ConstantNode retIndexInc = new ConstantNode(returnTupleSizeConst, StampFactory.positiveInt());
+                graph.addWithoutUnique(retIndexInc);
+                ValuePhiNode retPhNode = null;
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof ValuePhiNode) {
+                        retPhNode = (ValuePhiNode) n;
+                        returnIndexOffset = new MulNode(retIndexInc, retPhNode);
+                        graph.addWithoutUnique(returnIndexOffset);
+                    }
+                }
+
                 if (alloc) {
                     for (Node n : graph.getNodes()) {
                         if (n instanceof StoreIndexedNode) {
-                            StoreIndexedNode st = (StoreIndexedNode) n;
-                            StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(int.class), storeTupleInputs.get(0)));
-                            storesWithInputs.put(storeTupleInputs.get(0), newst);
-                            StoreIndexedNode newst2 = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), JavaKind.fromJavaClass(int.class), storeTupleInputs.get(1)));
-                            storesWithInputs.put(storeTupleInputs.get(1), newst2);
-                            graph.replaceFixed(st, newst);
-                            graph.addAfterFixed(newst, newst2);
-                            break;
+                            if (storeJavaKind.toString().contains("Tuple2")) {
+                                StoreIndexedNode st = (StoreIndexedNode) n;
+                                StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(0)));
+                                storesWithInputs.put(storeTupleInputs.get(0), newst);
+                                Constant retNextPosition = new RawConstant(1);
+                                ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
+                                graph.addWithoutUnique(retNextIndxOffset);
+                                AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
+                                graph.addWithoutUnique(nextRetTupleIndx);
+                                StoreIndexedNode newst2 = graph.addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(1)));
+                                storesWithInputs.put(storeTupleInputs.get(1), newst2);
+                                graph.replaceFixed(st, newst);
+                                graph.addAfterFixed(newst, newst2);
+                                break;
+                            } else if (storeJavaKind.toString().contains("Tuple3")) {
+                                StoreIndexedNode st = (StoreIndexedNode) n;
+                                StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(0)));
+                                storesWithInputs.put(storeTupleInputs.get(0), newst);
+
+                                Constant retNextPosition = new RawConstant(1);
+                                ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
+                                graph.addWithoutUnique(retNextIndxOffset);
+                                AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
+                                graph.addWithoutUnique(nextRetTupleIndx);
+                                StoreIndexedNode newst2 = graph.addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(1)));
+                                storesWithInputs.put(storeTupleInputs.get(1), newst2);
+                                graph.replaceFixed(st, newst);
+                                graph.addAfterFixed(newst, newst2);
+
+                                Constant retNextPositionF3 = new RawConstant(2);
+                                ConstantNode retNextIndxOffsetF3 = new ConstantNode(retNextPositionF3, StampFactory.positiveInt());
+                                graph.addWithoutUnique(retNextIndxOffsetF3);
+                                AddNode nextRetTupleIndxF3 = new AddNode(retNextIndxOffsetF3, returnIndexOffset);
+                                graph.addWithoutUnique(nextRetTupleIndxF3);
+                                StoreIndexedNode newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(int.class), storeTupleInputs.get(2)));
+                                storesWithInputs.put(storeTupleInputs.get(2), newst3);
+                                // graph.replaceFixed(st, newst);
+                                graph.addAfterFixed(newst2, newst3);
+                                break;
+                            }
                         }
                     }
 
@@ -129,7 +179,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 // } else {
                                 ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
                                 // }
-                                graph.addOrUnique(ldf0);
+                                graph.addWithoutUnique(ldf0);
                                 graph.replaceFixed(idx, ldf0);
                                 loadindxNodes.add(ldf0);
                                 for (int i = 1; i < tupleSize; i++) {
@@ -143,13 +193,13 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     // } else {
                                     Constant nextPosition = new RawConstant(i);
                                     ConstantNode nextIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
-                                    graph.addOrUnique(nextIndxOffset);
+                                    graph.addWithoutUnique(nextIndxOffset);
                                     AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
-                                    graph.addOrUnique(nextTupleIndx);
+                                    graph.addWithoutUnique(nextTupleIndx);
                                     // create loadindexed for the next field of the tuple
                                     ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
                                     // }
-                                    graph.addOrUnique(ldfn);
+                                    graph.addWithoutUnique(ldfn);
                                     graph.addAfterFixed(ldf0, ldfn);
                                     loadindxNodes.add(ldfn);
                                 }
@@ -183,11 +233,10 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                     }
                 }
 
-                int k = 0;
-                for (StoreIndexedNode st : storesWithInputs.values()) {
-                    st.replaceFirstInput(st.index(), loadindxNodes.get(k).index());
-                    k++;
-                }
+                /*
+                 * int k = 0; for (StoreIndexedNode st : storesWithInputs.values()) {
+                 * st.replaceFirstInput(st.index(), loadindxNodes.get(k).index()); k++; }
+                 */
             }
 
             // set usages of unbox nodes to field nodes
@@ -253,15 +302,14 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         UnboxNode un = (UnboxNode) n;
                         graph.replaceFixed(un, pred);
                     }
-                } else if (n instanceof ConstantNode) {
-                    System.out.println("Do not delete constant!!!!");
                 } else if (n instanceof BoxNode) {
                     for (Node u : n.usages()) {
                         u.replaceFirstInput(n, n.inputs().first());
                     }
                     n.safeDelete();
                 } else {
-                    n.safeDelete();
+                    if (!(n instanceof ConstantNode))
+                        n.safeDelete();
                 }
             }
 
