@@ -206,9 +206,15 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
 
     public static int flinkBytesToAllocate;
 
+    public static byte[] flinkDataCentroids;
+
+    public static int flinkBytesToAllocateCentroids;
+
     public static byte[] flinkDataOut;
 
     public static int flinkOutBytesToAllocate;
+
+    public static boolean writeTwoDataSets;
 
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
@@ -232,7 +238,16 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                     headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
                 }
                 if (flinkTornado) {
-                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                    if (!writeTwoDataSets) {
+                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                        if (flinkDataCentroids != null) {
+                            writeTwoDataSets = true;
+                        }
+                    } else {
+                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateCentroids, flinkDataCentroids, hostOffset + flinkOffset,
+                                (useDeps) ? events : null);
+                        writeTwoDataSets = false;
+                    }
                 } else {
                     returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
                 }
