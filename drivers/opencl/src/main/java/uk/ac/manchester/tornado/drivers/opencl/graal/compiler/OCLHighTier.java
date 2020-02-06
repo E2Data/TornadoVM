@@ -47,7 +47,7 @@ import org.graalvm.compiler.phases.common.inlining.InliningPhase;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
 import org.graalvm.compiler.virtual.phases.ea.PartialEscapePhase;
 
-import jdk.vm.ci.meta.MetaAccessProvider;
+import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoCollectionElimination;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoOpenCLIntrinsicsReplacements;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoParallelScheduler;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoPragmaUnroll;
@@ -123,6 +123,7 @@ public class OCLHighTier extends TornadoHighTier {
         appendPhase(new DeadCodeEliminationPhase(Optional));
 
         appendPhase(new SchedulePhase(SchedulePhase.SchedulingStrategy.EARLIEST));
+        appendPhase(new TornadoCollectionElimination());
         appendPhase(new TornadoTupleReplacement());
         appendPhase(new LoweringPhase(canonicalizer, LoweringTool.StandardLoweringStage.HIGH_TIER));
 
