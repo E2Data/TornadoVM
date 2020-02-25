@@ -34,8 +34,6 @@ import static uk.ac.manchester.tornado.runtime.common.Tornado.getProperty;
 import static uk.ac.manchester.tornado.runtime.common.Tornado.info;
 
 import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -239,13 +237,13 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                 }
                 if (flinkTornado) {
                     if (!writeTwoDataSets) {
-                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateCentroids, flinkDataCentroids, hostOffset + flinkOffset,
+                                (useDeps) ? events : null);
                         if (flinkDataCentroids != null) {
                             writeTwoDataSets = true;
                         }
                     } else {
-                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateCentroids, flinkDataCentroids, hostOffset + flinkOffset,
-                                (useDeps) ? events : null);
+                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
                         writeTwoDataSets = false;
                     }
                 } else {
