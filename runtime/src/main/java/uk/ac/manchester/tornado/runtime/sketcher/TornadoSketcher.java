@@ -96,6 +96,8 @@ public class TornadoSketcher {
         }
     }
 
+    public static boolean flink;
+
     static void buildSketch(SketchRequest request) {
         if (cache.containsKey(request.resolvedMethod)) {
             return;
