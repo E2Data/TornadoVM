@@ -88,6 +88,44 @@ public class TornadoTupleOffset extends Phase {
         }
     }
 
+    private void returnFieldNumberSingleLoop(Node n, HashMap<Integer, OCLAddressNode> orderedOCL, OCLAddressNode ocl, ValuePhiNode ph) {
+        String toBeReturned = null;
+        System.out.println("--> returnFieldNumberSingleLoop: " + n);
+        for (Node in : n.inputs()) {
+            if (in instanceof SignExtendNode) {
+                System.out.println("--> returnFieldNumberSingleLoop: in " + in + " is instanceOf SignExtendNode");
+                System.out.println("--> returnFieldNumberSingleLoop: in's first input: " + in.inputs().first());
+                if (in.inputs().first() instanceof AddNode) {
+                    AddNode ad = (AddNode) in.inputs().first();
+                    for (Node adin : ad.inputs()) {
+                        if (adin instanceof ConstantNode) {
+                            ConstantNode c = (ConstantNode) adin;
+                            toBeReturned = c.getValue().toValueString();
+                            int pos = Integer.parseInt(toBeReturned);
+                            orderedOCL.put(pos, ocl);
+                            fieldTypes.set(pos, "used");
+                        }
+                    }
+                }
+                if (toBeReturned == null) {
+                    orderedOCL.put(0, ocl);
+                    fieldTypes.set(0, "used");
+                } // else {
+                in.replaceFirstInput(in.inputs().first(), ph);
+
+                /*
+                 * for (Node adin : ad.inputs()) { if (!(adin instanceof ConstantNode)) {
+                 * in.replaceFirstInput(ad, adin); } } for (Node adin : ad.inputs()) {
+                 * adin.safeDelete(); } ad.safeDelete();
+                 */
+                // }
+                return;
+            } else {
+                returnFieldNumberSingleLoop(in, orderedOCL, ocl, ph);
+            }
+        }
+    }
+
     @Override
     protected void run(StructuredGraph graph) {
 
@@ -421,25 +459,30 @@ public class TornadoTupleOffset extends Phase {
                 // return;
                 isTuple4 = true;
             } else {
-                System.out.println("[TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
+                System.out.println("Input [TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
                 return;
             }
 
             // ArrayList<OCLAddressNode> readAddressNodes = new ArrayList<>();
             HashMap<Integer, OCLAddressNode> readAddressNodes = new HashMap();
 
+            ValuePhiNode ph = null;
+
+            for (Node n : graph.getNodes()) {
+                if (n instanceof ValuePhiNode) {
+                    ph = (ValuePhiNode) n;
+                }
+            }
+
             for (Node n : graph.getNodes()) {
                 if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
-                    FloatingReadNode f = (FloatingReadNode) n;
-                    String readFieldType = f.getLocationIdentity().toString();
-                    for (int i = 0; i < fieldTypes.size(); i++) {
-                        if (readFieldType.contains(fieldTypes.get(i))) {
-                            readAddressNodes.put(i, (OCLAddressNode) n.inputs().first());
-                            fieldTypes.set(i, "used");
-                            break;
-                        }
-                    }
+                    OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
+                    returnFieldNumberSingleLoop(ocl, readAddressNodes, ocl, ph);
                 }
+            }
+
+            for (int pos : readAddressNodes.keySet()) {
+                System.out.println("--readAddress OCL Node: " + pos + " -> " + readAddressNodes.get(pos));
             }
 
             if (readAddressNodes.size() == 0) {
@@ -481,13 +524,6 @@ public class TornadoTupleOffset extends Phase {
                 }
             }
 
-            ValuePhiNode ph = null;
-
-            for (Node n : graph.getNodes()) {
-                if (n instanceof ValuePhiNode) {
-                    ph = (ValuePhiNode) n;
-                }
-            }
             if (isTuple2) {
                 Constant firstOffset;
                 ConstantNode firstConstOffset;
@@ -592,11 +628,10 @@ public class TornadoTupleOffset extends Phase {
 
                 readAddressNodes.get(2).replaceFirstInput(add3, addOffThird);
 
-                for (Node n : graph.getNodes()) {
-                    if (n instanceof SignExtendNode) {
-                        n.replaceFirstInput(n.inputs().first(), ph);
-                    }
-                }
+                /*
+                 * for (Node n : graph.getNodes()) { if (n instanceof SignExtendNode) {
+                 * n.replaceFirstInput(n.inputs().first(), ph); } }
+                 */
 
             } else {
                 // if Tuple4
@@ -698,11 +733,10 @@ public class TornadoTupleOffset extends Phase {
 
                 readAddressNodes.get(3).replaceFirstInput(add4, addOffFourth);
 
-                for (Node n : graph.getNodes()) {
-                    if (n instanceof SignExtendNode) {
-                        n.replaceFirstInput(n.inputs().first(), ph);
-                    }
-                }
+                /*
+                 * for (Node n : graph.getNodes()) { if (n instanceof SignExtendNode) {
+                 * n.replaceFirstInput(n.inputs().first(), ph); } }
+                 */
 
             }
         }
@@ -718,10 +752,10 @@ public class TornadoTupleOffset extends Phase {
             } else if (fieldSizesRet.size() == 3) {
                 isTuple3 = true;
             } else if (fieldSizesRet.size() == 4) {
-                return;
-                // isTuple4 = true;
+                // return;
+                isTuple4 = true;
             } else {
-                System.out.println("[TornadoTupleOffset phase WARNING]: We currently only support up to Tuple3.");
+                System.out.println("Return [TornadoTupleOffset phase WARNING]: We currently only support up to Tuple3.");
                 return;
             }
 
@@ -924,51 +958,52 @@ public class TornadoTupleOffset extends Phase {
                 // 3*i + 2
                 // However, if the offsets of the types are different we handle field offset
                 // differently
-                if (!differentTypes) {
-                    for (Node addIns : add.inputs()) {
-                        if (addIns instanceof LeftShiftNode) {
-                            for (Node shiftIns : addIns.inputs()) {
-                                if (shiftIns instanceof SignExtendNode) {
-                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    for (Node addIns : add2.inputs()) {
-                        if (addIns instanceof LeftShiftNode) {
-                            for (Node shiftIns : addIns.inputs()) {
-                                if (shiftIns instanceof SignExtendNode) {
-                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    if (add3 != null) {
-                        for (Node addIns : add3.inputs()) {
-                            if (addIns instanceof LeftShiftNode) {
-                                for (Node shiftIns : addIns.inputs()) {
-                                    if (shiftIns instanceof SignExtendNode) {
-                                        shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                        break;
-                                    }
-                                }
+                // if (!differentTypes) {
+                for (Node addIns : add.inputs()) {
+                    if (addIns instanceof LeftShiftNode) {
+                        for (Node shiftIns : addIns.inputs()) {
+                            if (shiftIns instanceof SignExtendNode) {
+                                shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
                                 break;
                             }
                         }
+                        break;
                     }
-
                 }
+
+                for (Node addIns : add2.inputs()) {
+                    if (addIns instanceof LeftShiftNode) {
+                        for (Node shiftIns : addIns.inputs()) {
+                            if (shiftIns instanceof SignExtendNode) {
+                                shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (add3 != null) {
+                    for (Node addIns : add3.inputs()) {
+                        if (addIns instanceof LeftShiftNode) {
+                            for (Node shiftIns : addIns.inputs()) {
+                                if (shiftIns instanceof SignExtendNode) {
+                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // }
 
             } else {
                 // is Tuple4
                 // ----- (sizeOf(field1) + sizeOf(field2) + sizeOf(field3))
                 // constant for (sizeOf(field1) + sizeOf(field2) + sizeOf(field3))
+                System.out.println("-- Return type diff: Tuple4!! ");
                 Constant firstOffset;
                 ConstantNode firstConstOffset;
                 firstOffset = new RawConstant(fieldSizesRet.get(1) + fieldSizesRet.get(2) + fieldSizesRet.get(3));
@@ -1065,60 +1100,60 @@ public class TornadoTupleOffset extends Phase {
 
                 writeAddressNodes.get(3).replaceFirstInput(add4, addOffFourth);
 
-                if (!differentTypes) {
-                    for (Node addIns : add.inputs()) {
-                        if (addIns instanceof LeftShiftNode) {
-                            for (Node shiftIns : addIns.inputs()) {
-                                if (shiftIns instanceof SignExtendNode) {
-                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    for (Node addIns : add2.inputs()) {
-                        if (addIns instanceof LeftShiftNode) {
-                            for (Node shiftIns : addIns.inputs()) {
-                                if (shiftIns instanceof SignExtendNode) {
-                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-
-                    if (add3 != null) {
-                        for (Node addIns : add3.inputs()) {
-                            if (addIns instanceof LeftShiftNode) {
-                                for (Node shiftIns : addIns.inputs()) {
-                                    if (shiftIns instanceof SignExtendNode) {
-                                        shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                        break;
-                                    }
-                                }
+                // if (!differentTypes) {
+                for (Node addIns : add.inputs()) {
+                    if (addIns instanceof LeftShiftNode) {
+                        for (Node shiftIns : addIns.inputs()) {
+                            if (shiftIns instanceof SignExtendNode) {
+                                shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
                                 break;
                             }
                         }
+                        break;
                     }
-
-                    if (add4 != null) {
-                        for (Node addIns : add4.inputs()) {
-                            if (addIns instanceof LeftShiftNode) {
-                                for (Node shiftIns : addIns.inputs()) {
-                                    if (shiftIns instanceof SignExtendNode) {
-                                        shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-
                 }
+
+                for (Node addIns : add2.inputs()) {
+                    if (addIns instanceof LeftShiftNode) {
+                        for (Node shiftIns : addIns.inputs()) {
+                            if (shiftIns instanceof SignExtendNode) {
+                                shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (add3 != null) {
+                    for (Node addIns : add3.inputs()) {
+                        if (addIns instanceof LeftShiftNode) {
+                            for (Node shiftIns : addIns.inputs()) {
+                                if (shiftIns instanceof SignExtendNode) {
+                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (add4 != null) {
+                    for (Node addIns : add4.inputs()) {
+                        if (addIns instanceof LeftShiftNode) {
+                            for (Node shiftIns : addIns.inputs()) {
+                                if (shiftIns instanceof SignExtendNode) {
+                                    shiftIns.replaceFirstInput(shiftIns.inputs().first(), ph);
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // }
 
             }
         }
