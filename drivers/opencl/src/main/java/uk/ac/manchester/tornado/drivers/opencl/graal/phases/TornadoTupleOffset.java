@@ -90,11 +90,8 @@ public class TornadoTupleOffset extends Phase {
 
     private void returnFieldNumberSingleLoop(Node n, HashMap<Integer, OCLAddressNode> orderedOCL, OCLAddressNode ocl, ValuePhiNode ph) {
         String toBeReturned = null;
-        System.out.println("--> returnFieldNumberSingleLoop: " + n);
         for (Node in : n.inputs()) {
             if (in instanceof SignExtendNode) {
-                System.out.println("--> returnFieldNumberSingleLoop: in " + in + " is instanceOf SignExtendNode");
-                System.out.println("--> returnFieldNumberSingleLoop: in's first input: " + in.inputs().first());
                 if (in.inputs().first() instanceof AddNode) {
                     AddNode ad = (AddNode) in.inputs().first();
                     for (Node adin : ad.inputs()) {
