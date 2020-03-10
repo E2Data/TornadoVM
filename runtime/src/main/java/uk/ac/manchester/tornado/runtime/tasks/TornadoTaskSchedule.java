@@ -81,7 +81,6 @@ import uk.ac.manchester.tornado.api.exceptions.TornadoRuntimeException;
 import uk.ac.manchester.tornado.api.profiler.ProfilerType;
 import uk.ac.manchester.tornado.api.profiler.TornadoProfiler;
 import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
-import uk.ac.manchester.tornado.examples.TestFlinkASM;
 import uk.ac.manchester.tornado.runtime.TornadoVM;
 import uk.ac.manchester.tornado.runtime.analyzer.MetaReduceCodeAnalysis;
 import uk.ac.manchester.tornado.runtime.analyzer.ReduceCodeAnalysis;
@@ -1396,11 +1395,8 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
         Object[] parameters = taskPackage.getTaskParameters();
 
         Method method;
-        if (TestFlinkASM.meth != null) {
-            method = TestFlinkASM.meth;
-        } else {
-            method = TaskUtils.resolveMethodHandle(parameters[0]);
-        }
+
+        method = TaskUtils.resolveMethodHandle(parameters[0]);
 
         ScheduleMetaData meta = meta();
 

@@ -9,6 +9,7 @@ import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.nodes.ConstantNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.calc.AddNode;
@@ -148,7 +149,7 @@ public class TornadoTupleOffset extends Phase {
                 ArrayList<OCLAddressNode> innerOCLNodes = new ArrayList<>();
 
                 for (Node n : graph.getNodes()) {
-                    if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp().toString().contains("Lorg/apache/flink/")) {
+                    if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
                         OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
                         retInnerOCL(ocl, innerPhi, innerOCLNodes, ocl);
                     }
@@ -428,7 +429,7 @@ public class TornadoTupleOffset extends Phase {
             HashMap<Integer, OCLAddressNode> readAddressNodes = new HashMap();
 
             for (Node n : graph.getNodes()) {
-                if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp().toString().contains("Lorg/apache/flink/")) {
+                if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
                     FloatingReadNode f = (FloatingReadNode) n;
                     String readFieldType = f.getLocationIdentity().toString();
                     for (int i = 0; i < fieldTypes.size(); i++) {

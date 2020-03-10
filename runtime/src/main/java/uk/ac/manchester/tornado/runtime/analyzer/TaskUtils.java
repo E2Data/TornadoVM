@@ -1,5 +1,5 @@
 /*
- * This file is part of Tornado: A heterogeneous programming framework: 
+ * This file is part of Tornado: A heterogeneous programming framework:
  * https://github.com/beehive-lab/tornadovm
  *
  * Copyright (c) 2020, APT Group, Department of Computer Science,
@@ -54,7 +54,6 @@ import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task6;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task7;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task8;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task9;
-import uk.ac.manchester.tornado.examples.TestFlinkASM;
 import uk.ac.manchester.tornado.runtime.TornadoCoreRuntime;
 import uk.ac.manchester.tornado.runtime.domain.DomainTree;
 import uk.ac.manchester.tornado.runtime.domain.IntDomain;
@@ -84,36 +83,33 @@ public class TaskUtils {
      * contains the invocation to the actual code. The actual code is an INVOKE that
      * is inside the apply method of the lambda. This method searches for the nested
      * method with the actual code to be compiled.
-     * 
+     *
      * @param task
      *            Input Tornado task that corresponds to the user code.
      */
     public static Method resolveMethodHandle(Object task) {
-        if (TestFlinkASM.meth != null) {
-            return TestFlinkASM.meth;
-        } else {
-            final Class<?> type = task.getClass();
+        final Class<?> type = task.getClass();
 
-            /*
-             * task should implement one of the TaskX interfaces... ...so we look for the
-             * apply function. Note: apply will perform some type casting and then call the
-             * function we really want to use, so we need to resolve the nested function.
-             */
-            Method entryPoint = null;
-            for (Method m : type.getDeclaredMethods()) {
-                if (m.getName().equals("apply")) {
-                    entryPoint = m;
-                }
+        /*
+         * task should implement one of the TaskX interfaces... ...so we look for the
+         * apply function. Note: apply will perform some type casting and then call the
+         * function we really want to use, so we need to resolve the nested function.
+         */
+        Method entryPoint = null;
+        for (Method m : type.getDeclaredMethods()) {
+            if (m.getName().equals("apply")) {
+                entryPoint = m;
             }
+        }
 
-            guarantee(entryPoint != null, "unable to find entry point");
-            /*
-             * Fortunately we can do a bit of JVMCI magic to resolve the function to a
-             * Method.
-             */
-            final ResolvedJavaMethod resolvedMethod = TornadoCoreRuntime.getVMBackend().getMetaAccess().lookupJavaMethod(entryPoint);
-            final ConstantPool cp = resolvedMethod.getConstantPool();
-            final byte[] bc = resolvedMethod.getCode();
+        guarantee(entryPoint != null, "unable to find entry point");
+        /*
+         * Fortunately we can do a bit of JVMCI magic to resolve the function to a
+         * Method.
+         */
+        final ResolvedJavaMethod resolvedMethod = TornadoCoreRuntime.getVMBackend().getMetaAccess().lookupJavaMethod(entryPoint);
+        final ConstantPool cp = resolvedMethod.getConstantPool();
+        final byte[] bc = resolvedMethod.getCode();
 
         for (int i = 0; i < bc.length; i++) {
             if (bc[i] == (byte) Bytecodes.INVOKESTATIC) {
@@ -163,9 +159,9 @@ public class TaskUtils {
                 }
                 break;
             }
-            shouldNotReachHere();
-            return null;
         }
+        shouldNotReachHere();
+        return null;
     }
 
     public static <T1> CompilableTask createTask(Method method, ScheduleMetaData meta, String id, Task code) {
