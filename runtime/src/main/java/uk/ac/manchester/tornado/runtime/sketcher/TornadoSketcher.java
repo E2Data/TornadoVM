@@ -1,5 +1,5 @@
 /*
- * This file is part of Tornado: A heterogeneous programming framework: 
+ * This file is part of Tornado: A heterogeneous programming framework:
  * https://github.com/beehive-lab/tornadovm
  *
  * Copyright (c) 2020, APT Group, Department of Computer Science,
@@ -96,18 +96,16 @@ public class TornadoSketcher {
         }
     }
 
-    public static boolean flink;
-
     static void buildSketch(SketchRequest request) {
         if (cache.containsKey(request.resolvedMethod)) {
             return;
         }
         cache.put(request.resolvedMethod, request);
-            try (DebugContext.Scope ignored = getDebugContext().scope("SketchCompiler")) {
-                request.result = buildSketch(request.meta, request.resolvedMethod, request.providers, request.graphBuilderSuite, request.sketchTier);
-            } catch (Throwable e) {
-                throw getDebugContext().handle(e);
-            }
+        try (DebugContext.Scope ignored = getDebugContext().scope("SketchCompiler")) {
+            request.result = buildSketch(request.meta, request.resolvedMethod, request.providers, request.graphBuilderSuite, request.sketchTier);
+        } catch (Throwable e) {
+            throw getDebugContext().handle(e);
+        }
     }
 
     private static Sketch buildSketch(TaskMetaData meta, ResolvedJavaMethod resolvedMethod, Providers providers, PhaseSuite<HighTierContext> graphBuilderSuite, TornadoSketchTier sketchTier) {
@@ -137,16 +135,25 @@ public class TornadoSketcher {
             graph.maybeCompress();
 
             // Compile all non-inlined call-targets into a single compilation-unit
-
-            // @formatter:off
-            graph.getInvokes()
-                 .forEach(invoke -> {
-                     if (openclTokens.contains(invoke.callTarget().targetMethod().getName())) {
-                         throw new TornadoRuntimeException("[ERROR] Java method name corresponds to an OpenCL Token. Change the Java method's name: " + invoke.callTarget().targetMethod().getName());
-                     }
-                     getTornadoExecutor().execute(new SketchRequest(meta,invoke.callTarget().targetMethod(),providers,graphBuilderSuite,sketchTier));
-                 });
-            // @formatter:on
+            for (Invoke invoke : graph.getInvokes()) {
+                // do not sketch functions related to Lists and Collections
+                if (invoke.callTarget().targetMethod().toString().contains("List") || invoke.callTarget().targetMethod().toString().contains("Collection")) {
+                    continue;
+                }
+                if (openclTokens.contains(invoke.callTarget().targetMethod().getName())) {
+                    throw new TornadoRuntimeException("[ERROR] Java method name corresponds to an OpenCL Token. Change the Java method's name: " + invoke.callTarget().targetMethod().getName());
+                }
+                getTornadoExecutor().execute(new SketchRequest(meta, invoke.callTarget().targetMethod(), providers, graphBuilderSuite, sketchTier));
+            }
+//            // @formatter:off
+//            graph.getInvokes()
+//                    .forEach(invoke -> {
+//                        if (openclTokens.contains(invoke.callTarget().targetMethod().getName())) {
+//                            throw new TornadoRuntimeException("[ERROR] Java method name corresponds to an OpenCL Token. Change the Java method's name: " + invoke.callTarget().targetMethod().getName());
+//                        }
+//                        getTornadoExecutor().execute(new SketchRequest(meta,invoke.callTarget().targetMethod(),providers,graphBuilderSuite,sketchTier));
+//                    });
+//            // @formatter:on
             return new Sketch(CachedGraph.fromReadonlyCopy(graph), meta);
 
         } catch (Throwable e) {
