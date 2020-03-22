@@ -203,17 +203,18 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
 
     public static int flinkBytesToAllocate;
 
-    public static byte[] flinkDataCentroids;
+    public static byte[] flinkDataSecondDataset;
 
-    public static int flinkBytesToAllocateCentroids;
+    public static int flinkBytesToAllocateSecondDataset;
 
     public static byte[] flinkDataOut;
 
     public static int flinkOutBytesToAllocate;
 
-    public static boolean writeTwoDataSets;
+    // public static boolean SelectKmeans;
+    public static boolean secondDataset;
 
-    public static boolean SelectKmeans;
+    public static boolean writeTwoDataSets;
 
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
@@ -237,16 +238,16 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                     headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
                 }
                 if (flinkTornado) {
-                    if (SelectKmeans) {
+                    if (secondDataset) {
                         if (!writeTwoDataSets) {
-                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateCentroids, flinkDataCentroids, hostOffset + flinkOffset,
-                                    (useDeps) ? events : null);
-                            if (flinkDataCentroids != null) {
-                                writeTwoDataSets = true;
-                            }
-                        } else {
                             returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
-                            writeTwoDataSets = false;
+                            writeTwoDataSets = true;
+                        } else {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateSecondDataset, flinkDataSecondDataset, hostOffset + flinkOffset,
+                                    (useDeps) ? events : null);
+                            // if (flinkDataSecondDataset != null) {
+                            // writeTwoDataSets = false;
+                            // }
                         }
                     } else {
                         returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
