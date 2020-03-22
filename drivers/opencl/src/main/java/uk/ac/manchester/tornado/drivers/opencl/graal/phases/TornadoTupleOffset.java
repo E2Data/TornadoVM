@@ -195,7 +195,7 @@ public class TornadoTupleOffset extends Phase {
                 }
 
                 if (readAddressNodes.size() == 0) {
-                    System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                    // System.out.println("Oops, no elements in readAddressNodes HashMap!");
                     return;
                 }
 
@@ -443,7 +443,7 @@ public class TornadoTupleOffset extends Phase {
 
         if (differentTypes) {
 
-            System.out.println("Different Types for outer loop");
+            // System.out.println("Different Types for outer loop");
             boolean isTuple2 = false;
             boolean isTuple3 = false;
             boolean isTuple4 = false;
@@ -478,12 +478,8 @@ public class TornadoTupleOffset extends Phase {
                 }
             }
 
-            for (int pos : readAddressNodes.keySet()) {
-                System.out.println("--readAddress OCL Node: " + pos + " -> " + readAddressNodes.get(pos));
-            }
-
             if (readAddressNodes.size() == 0) {
-                System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                // System.out.println("Oops, no elements in readAddressNodes HashMap!");
                 return;
             }
 
@@ -739,7 +735,7 @@ public class TornadoTupleOffset extends Phase {
         }
 
         if (differentTypesRet) {
-            System.out.println("Return type fields are different!");
+            // System.out.println("Return type fields are different!");
             boolean isTuple2 = false;
             boolean isTuple3 = false;
             boolean isTuple4 = false;
@@ -774,7 +770,7 @@ public class TornadoTupleOffset extends Phase {
             }
 
             if (writeAddressNodes.size() == 0) {
-                System.out.println("Oops, no elements in writeAddressNodes HashMap!");
+                // System.out.println("Oops, no elements in writeAddressNodes HashMap!");
                 return;
             }
             AddNode add = null;
@@ -1000,7 +996,7 @@ public class TornadoTupleOffset extends Phase {
                 // is Tuple4
                 // ----- (sizeOf(field1) + sizeOf(field2) + sizeOf(field3))
                 // constant for (sizeOf(field1) + sizeOf(field2) + sizeOf(field3))
-                System.out.println("-- Return type diff: Tuple4!! ");
+                // System.out.println("-- Return type diff: Tuple4!! ");
                 Constant firstOffset;
                 ConstantNode firstConstOffset;
                 firstOffset = new RawConstant(fieldSizesRet.get(1) + fieldSizesRet.get(2) + fieldSizesRet.get(3));
