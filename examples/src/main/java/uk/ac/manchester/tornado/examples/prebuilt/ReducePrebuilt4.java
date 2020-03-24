@@ -28,53 +28,54 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-public class ReducePrebuilt2 {
+public class ReducePrebuilt4 {
 
     private static final int SIZE = 8192;
 
-    // Original task
-    private static void reductionAddDoubles(double[] input, @Reduce double[] result) {
-        result[0] = 0.0f;
-        for (@Parallel int i = 0; i < input.length; i++) {
-            result[0] += input[i];
-        }
-    }
-
     public static void run() {
-        double[] input = new double[SIZE];
+        int[] i1 = new int[SIZE];
+        double[] i2A = new double[SIZE];
+        double[] i2B = new double[SIZE];
+        long[] i3 = new long[SIZE];
+
         int size = 8192 / 256;
-        double[] output1 = new double[size + 1];
-        double[] output2 = new double[size + 1];
-        double[] result = new double[1];
+
+        int[] o1 = new int[size + 1];
+        double[] o2A = new double[size + 1];
+        double[] o2B = new double[size + 1];
+        long[] o3 = new long[size + 1];
 
         Random r = new Random();
         IntStream.range(0, SIZE).parallel().forEach(i -> {
-            input[i] = r.nextDouble();
+            i1[i] = r.nextInt();
+            i2A[i] = r.nextDouble();
+            i2B[i] = r.nextDouble();
+            i3[i] = 1;
         });
 
         TornadoDevice defaultDevice = TornadoRuntime.getTornadoRuntime().getDefaultDevice();
-        // @formatter:off
-        new TaskSchedule("s0")
-                .prebuiltTask("t0",
-                        "reductionAddDoubles",
-                        "./pre-compiled/prebuilt-reduce2.cl",
-                        new Object[] { input, output1, output2 },
-                        new Access[] { Access.READ, Access.WRITE, Access.WRITE },
-                        defaultDevice,
-                        new int[] { SIZE })
-                .streamOut(output1, output2)
+
+        new TaskSchedule("s0") //
+                .prebuiltTask("t0", //
+                        "reduce", //
+                        "./pre-compiled/prebuilt-reduceFlink.cl", //
+                        new Object[] { i1, i2A, i2B, i3, o1, o2A, o2B, o3 }, //
+                        new Access[] { Access.READ, Access.READ, Access.READ, Access.READ, Access.WRITE, Access.WRITE, Access.WRITE, Access.WRITE, }, //
+                        defaultDevice, //
+                        new int[] { SIZE }) //
+                .streamOut(o1, o2A, o2B, o3) //
                 .execute();
-        // @formatter:on
 
         // Final reduction
-        for (int i = 1; i < output1.length; i++) {
-            output1[0] += output1[i];
-            output2[0] += output2[i];
+        for (int i = 1; i < o1.length; i++) {
+            o2A[0] += o2A[i];
+            o2B[0] += o2B[i];
+            o3[0] += o3[i];
         }
 
-        System.out.println(Arrays.toString(output1));
-        System.out.println(Arrays.toString(output2));
-
+        System.out.println(Arrays.toString(o2A));
+        System.out.println(Arrays.toString(o2B));
+        System.out.println(Arrays.toString(o3));
     }
 
     public static void main(String[] args) {

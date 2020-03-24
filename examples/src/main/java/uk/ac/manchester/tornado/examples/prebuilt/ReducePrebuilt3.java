@@ -28,19 +28,19 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-/**
- * Testing a simple reduction with 1 reduce variable that is pre-compiled in
- * OpenCL.
- */
 public class ReducePrebuilt3 {
 
     private static final int SIZE = 8192;
 
     // Original task
-    private static void reductionAddDoubles(double[] input, @Reduce double[] result) {
-        result[0] = 0.0f;
+    private static void reductionAddDoubles(double[] input, @Reduce double[] result1, @Reduce double[] result2, @Reduce double[] result3) {
+        result1[0] = 0.0f;
+        result2[0] = 0.0f;
+        result3[0] = 0.0f;
         for (@Parallel int i = 0; i < input.length; i++) {
-            result[0] += input[i];
+            result1[0] += input[i];
+            result2[0] += input[i];
+            result3[0] += input[i];
         }
     }
 
@@ -54,7 +54,7 @@ public class ReducePrebuilt3 {
 
         Random r = new Random();
         IntStream.range(0, SIZE).parallel().forEach(i -> {
-            input[i] = 1;
+            input[i] = r.nextLong();
         });
 
         TornadoDevice defaultDevice = TornadoRuntime.getTornadoRuntime().getDefaultDevice();
@@ -63,7 +63,7 @@ public class ReducePrebuilt3 {
                 .prebuiltTask("t0",
                         "reductionAddDoubles",
                         "./pre-compiled/prebuilt-reduce3.cl",
-                        new Object[] { input, output1, output2 , output3},
+                        new Object[] { input, output1, output2 , output3 },
                         new Access[] { Access.READ, Access.WRITE, Access.WRITE , Access.WRITE },
                         defaultDevice,
                         new int[] { SIZE })
