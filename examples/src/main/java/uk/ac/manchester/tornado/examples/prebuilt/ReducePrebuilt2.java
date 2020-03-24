@@ -24,6 +24,7 @@ import uk.ac.manchester.tornado.api.common.Access;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 
+import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -31,7 +32,7 @@ import java.util.stream.IntStream;
  * Testing a simple reduction with 1 reduce variable that is pre-compiled in
  * OpenCL.
  */
-public class ReducePrebuilt {
+public class ReducePrebuilt2 {
 
     private static final int SIZE = 8192;
 
@@ -46,7 +47,8 @@ public class ReducePrebuilt {
     public static void run() {
         double[] input = new double[SIZE];
         int size = 8192 / 256;
-        double[] output = new double[size + 1];
+        double[] output1 = new double[size + 1];
+        double[] output2 = new double[size + 1];
         double[] result = new double[1];
 
         Random r = new Random();
@@ -59,33 +61,24 @@ public class ReducePrebuilt {
         new TaskSchedule("s0")
                 .prebuiltTask("t0",
                         "reductionAddDoubles",
-                        "./pre-compiled//prebuilt-reduce.cl",
-                        new Object[] { input, output },
-                        new Access[] { Access.READ, Access.WRITE },
+                        "./pre-compiled//prebuilt-reduce2.cl",
+                        new Object[] { input, output1, output2 },
+                        new Access[] { Access.READ, Access.WRITE, Access.WRITE },
                         defaultDevice,
-                        new int[] { SIZE })  
-                .streamOut(output)
+                        new int[] { SIZE })
+                .streamOut(output1, output2)
                 .execute();
-        
-        // Final reduction
-        for (int i = 1; i < output.length; i++) {
-            output[0] += output[i];
-        }
-        
-        // Check
-        //@formatter:off
-        new TaskSchedule("s1")
-                .task("t1", ReducePrebuilt::reductionAddDoubles, input, result)
-                .streamOut(result)
-                .execute();
-        //@formatter:on
 
-        if (Math.abs(output[0] - result[0]) > 0.01) {
-            System.out.println("[ERROR] Result not correct");
-            System.out.println(output[0] + " vs " + result[0]);
-        } else {
-            System.out.println("Result is correct");
+        // Final reduction
+        for (int i = 1; i < output1.length; i++) {
+            output1[0] += output1[i];
+            output2[0] += output2[i];
         }
+        
+        
+        System.out.println(Arrays.toString(output1));
+        System.out.println(Arrays.toString(output2));
+        
     }
 
     public static void main(String[] args) {
