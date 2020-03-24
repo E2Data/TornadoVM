@@ -61,24 +61,24 @@ public class ReducePrebuilt2 {
         new TaskSchedule("s0")
                 .prebuiltTask("t0",
                         "reductionAddDoubles",
-                        "./pre-compiled//prebuilt-reduce2.cl",
+                        "./pre-compiled/prebuilt-reduce2.cl",
                         new Object[] { input, output1, output2 },
                         new Access[] { Access.READ, Access.WRITE, Access.WRITE },
                         defaultDevice,
                         new int[] { SIZE })
                 .streamOut(output1, output2)
                 .execute();
+        // @formatter:on
 
         // Final reduction
         for (int i = 1; i < output1.length; i++) {
             output1[0] += output1[i];
             output2[0] += output2[i];
         }
-        
-        
+
         System.out.println(Arrays.toString(output1));
         System.out.println(Arrays.toString(output2));
-        
+
     }
 
     public static void main(String[] args) {
