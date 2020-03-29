@@ -166,8 +166,27 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
         }
 
         final int returnEvent;
+
         if (flinkTornado) {
-            returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkOutBytesToAllocate, flinkDataOut, hostOffset, (useDeps) ? events : null);
+            if (flinkReduction) {
+                if (currRedDatasetOut == 0) {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionIdOutSize, reductionIdOut, hostOffset + flinkOffset, (useDeps) ? events : null);
+                    currRedDatasetOut++;
+                } else if (currRedDatasetOut == 1) {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionPointxOutSize, reductionPointxOut, hostOffset + flinkOffset, (useDeps) ? events : null);
+                    currRedDatasetOut++;
+                } else if (currRedDatasetOut == 2) {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionPointyOutSize, reductionPointyOut, hostOffset + flinkOffset, (useDeps) ? events : null);
+                    currRedDatasetOut++;
+                } else if (currRedDatasetOut == 3) {
+                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionCounterOutSize, reductionCounterOut, hostOffset + flinkOffset, (useDeps) ? events : null);
+                    currRedDatasetOut = 0;
+                } else {
+                    returnEvent = 0;
+                }
+            } else {
+                returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkOutBytesToAllocate, flinkDataOut, hostOffset, (useDeps) ? events : null);
+            }
         } else {
             if (isFinal) {
                 returnEvent = enqueueReadArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
@@ -216,6 +235,42 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
 
     public static boolean writeTwoDataSets;
 
+    // ---- buffers for kmeans reduction
+
+    // input data
+    public static boolean flinkReduction;
+
+    public static byte[] reductionId;
+
+    public static byte[] reductionPointx;
+
+    public static byte[] reductionPointy;
+
+    public static byte[] reductionCounter;
+
+    public static int currRedDataset = 0;
+
+    // output data
+
+    public static byte[] reductionIdOut;
+
+    public static byte[] reductionPointxOut;
+
+    public static byte[] reductionPointyOut;
+
+    public static byte[] reductionCounterOut;
+
+    public static int reductionIdOutSize;
+
+    public static int reductionPointxOutSize;
+
+    public static int reductionPointyOutSize;
+
+    public static int reductionCounterOutSize;
+
+    public static int currRedDatasetOut = 0;
+    // ---------------------------------
+
     @Override
     public List<Integer> enqueueWrite(final Object value, long batchSize, long hostOffset, final int[] events, boolean useDeps) {
 
@@ -238,19 +293,43 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                     headerEvent = buildArrayHeaderBatch(batchSize).enqueueWrite((useDeps) ? events : null);
                 }
                 if (flinkTornado) {
-                    if (secondDataset) {
-                        if (!writeTwoDataSets) {
-                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
-                            writeTwoDataSets = true;
-                        } else {
-                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateSecondDataset, flinkDataSecondDataset, hostOffset + flinkOffset,
+                    if (flinkReduction) {
+                        if (currRedDataset == 0) {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionId.length, reductionId, hostOffset + flinkOffset, (useDeps) ? events : null);
+                            currRedDataset++;
+                        } else if (currRedDataset == 1) {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionPointx.length, reductionPointx, hostOffset + flinkOffset,
                                     (useDeps) ? events : null);
-                            // if (flinkDataSecondDataset != null) {
-                            // writeTwoDataSets = false;
-                            // }
+                            currRedDataset++;
+                        } else if (currRedDataset == 2) {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionPointy.length, reductionPointy, hostOffset + flinkOffset,
+                                    (useDeps) ? events : null);
+                            currRedDataset++;
+                        } else if (currRedDataset == 3) {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, reductionCounter.length, reductionCounter, hostOffset + flinkOffset,
+                                    (useDeps) ? events : null);
+                            currRedDataset = 0;
+                        } else {
+                            returnEvent = 0;
                         }
+                        // returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset +
+                        // arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset,
+                        // (useDeps) ? events : null);
                     } else {
-                        returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                        if (secondDataset) {
+                            if (!writeTwoDataSets) {
+                                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                                writeTwoDataSets = true;
+                            } else {
+                                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateSecondDataset, flinkDataSecondDataset, hostOffset + flinkOffset,
+                                        (useDeps) ? events : null);
+                                // if (flinkDataSecondDataset != null) {
+                                // writeTwoDataSets = false;
+                                // }
+                            }
+                        } else {
+                            returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                        }
                     }
                 } else {
                     returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
@@ -364,7 +443,43 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
             }
         } else {
             if (flinkTornado) {
-                return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, (useDeps) ? events : null);
+                if (flinkReduction) {
+                    // if (currRedDatasetOut == 0) {
+                    // currRedDatasetOut++;
+                    // return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                    // OCLArrayWrapper.reductionIdOutSize, OCLArrayWrapper.reductionIdOut,
+                    // hostOffset, (useDeps) ? events : null);
+                    // } else if (currRedDatasetOut == 1) {
+                    // currRedDatasetOut++;
+                    // return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                    // OCLArrayWrapper.reductionPointxOutSize, OCLArrayWrapper.reductionPointxOut,
+                    // hostOffset,
+                    // (useDeps) ? events : null);
+                    // } else if (currRedDatasetOut == 2) {
+                    // currRedDatasetOut++;
+                    // return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                    // OCLArrayWrapper.reductionPointyOutSize, OCLArrayWrapper.reductionPointyOut,
+                    // hostOffset,
+                    // (useDeps) ? events : null);
+                    // } else if (currRedDatasetOut == 3) {
+                    // currRedDatasetOut = 0;
+                    // return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                    // OCLArrayWrapper.reductionCounterOutSize, OCLArrayWrapper.reductionCounterOut,
+                    // hostOffset,
+                    // (useDeps) ? events : null);
+                    // } else {
+                    // return 0;
+                    // } =====
+                    return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
+                    // } else {
+                    // if (flinkReduction) {
+                    // return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                    // bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events :
+                    // null);
+                } else {
+                    return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, (useDeps) ? events : null);
+                }
+                // }
             } else {
                 return readArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
             }
@@ -375,7 +490,12 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
     abstract protected int readArrayData(long bufferId, long offset, long bytes, T value, long hostOffset, int[] waitEvents);
 
     protected int readArrayData(long bufferId, long offset, long bytes, byte[] value, long hostOffset, int[] waitEvents) {
-        int res = deviceContext.readBuffer(bufferId, offset, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, waitEvents);
+        int res;
+        if (flinkReduction) {
+            res = deviceContext.readBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
+        } else {
+            res = deviceContext.readBuffer(bufferId, offset, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, waitEvents);
+        }
         return res;
     }
 
