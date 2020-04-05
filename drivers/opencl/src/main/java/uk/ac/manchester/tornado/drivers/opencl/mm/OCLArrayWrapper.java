@@ -269,6 +269,10 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
     public static int reductionCounterOutSize;
 
     public static int currRedDatasetOut = 0;
+
+    public static boolean writtenBoth = false;
+
+    public static boolean writtenData = false;
     // ---------------------------------
 
     @Override
@@ -317,19 +321,95 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                         // (useDeps) ? events : null);
                     } else {
                         if (secondDataset) {
-                            if (!writeTwoDataSets) {
-                                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
-                                writeTwoDataSets = true;
+                            if (!writtenBoth) {
+                                if (!writeTwoDataSets) {
+                                    System.out.println("\n^^^ WRITE FLINK FIRST DATASET");
+                                    System.out.println("\n^^^ DATASET 1: ");
+                                    for (int i = 0; i < flinkData.length; i++) {
+                                        System.out.print(flinkData[i] + " ");
+                                    }
+                                    System.out.println("\n### enqueueWriteData (first dataset) : toBuffer = " + toBuffer());
+                                    System.out.println("### enqueueWriteData (first dataset) : bufferOffset = " + bufferOffset);
+                                    System.out.println("### enqueueWriteData (first dataset) : arrayHeaderSize = " + arrayHeaderSize);
+                                    System.out.println("### enqueueWriteData (first dataset) : hostOffset = " + hostOffset);
+                                    System.out.println("### enqueueWriteData (first dataset) : useDeps = " + useDeps);
+                                    if (useDeps) {
+                                        if (events != null) {
+                                            System.out.println("### enqueueWriteData (first dataset) : events = ");
+                                            for (int i = 0; i < events.length; i++) {
+                                                System.out.println("### event[" + i + "] : " + events[i]);
+                                            }
+                                        }
+                                    }
+                                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset,
+                                            (useDeps) ? events : null);
+                                    writeTwoDataSets = true;
+                                    System.out.println("\n^^^ returnEvent (first dataset): " + returnEvent);
+                                } else {
+                                    System.out.println("\n^^^ WRITE FLINK SECOND DATASET ");
+                                    System.out.println("\n^^^ DATASET 2: ");
+                                    for (int i = 0; i < flinkDataSecondDataset.length; i++) {
+                                        System.out.print(flinkDataSecondDataset[i] + " ");
+                                    }
+                                    System.out.println("\n### enqueueWriteData (second dataset) : toBuffer = " + toBuffer());
+                                    System.out.println("### enqueueWriteData (second dataset) : bufferOffset = " + bufferOffset);
+                                    System.out.println("### enqueueWriteData (second dataset) : arrayHeaderSize = " + arrayHeaderSize);
+                                    System.out.println("### enqueueWriteData (second dataset) : hostOffset = " + hostOffset);
+                                    System.out.println("### enqueueWriteData (second dataset) : useDeps = " + useDeps);
+                                    if (useDeps) {
+                                        if (events != null) {
+                                            System.out.println("### enqueueWriteData (second dataset) : events = ");
+                                            for (int i = 0; i < events.length; i++) {
+                                                System.out.println("### event[" + i + "] : " + events[i]);
+                                            }
+                                        }
+                                    }
+                                    returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateSecondDataset, flinkDataSecondDataset, hostOffset + flinkOffset,
+                                            (useDeps) ? events : null);
+                                    System.out.println("\n^^^ returnEvent (second dataset): " + returnEvent);
+                                    // if (flinkDataSecondDataset != null) {
+                                    // writeTwoDataSets = false;
+                                    // }
+                                    writtenBoth = true;
+                                }
                             } else {
-                                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocateSecondDataset, flinkDataSecondDataset, hostOffset + flinkOffset,
+                                System.out.println("\n--++ Write buffer for streamout");
+                                returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkOutBytesToAllocate, flinkDataOut, hostOffset + flinkOffset,
                                         (useDeps) ? events : null);
-                                // if (flinkDataSecondDataset != null) {
-                                // writeTwoDataSets = false;
-                                // }
+                                writtenBoth = false;
                             }
+
                         } else {
+                            // if (!writtenData) {
+                            System.out.println("\n^^^ WRITE FLINK DATA");
+                            System.out.println("\n^^^ DATA: ");
+                            for (int i = 0; i < flinkData.length; i++) {
+                                System.out.print(flinkData[i] + " ");
+                            }
+                            System.out.println("\n### enqueueWriteData (single dataset) : toBuffer = " + toBuffer());
+                            System.out.println("### enqueueWriteData (single dataset) : bufferOffset = " + bufferOffset);
+                            System.out.println("### enqueueWriteData (single dataset) : arrayHeaderSize = " + arrayHeaderSize);
+                            System.out.println("### enqueueWriteData (single dataset) : hostOffset = " + hostOffset);
+                            System.out.println("### enqueueWriteData (single dataset) : useDeps = " + useDeps);
+                            if (useDeps) {
+                                if (events != null) {
+                                    System.out.println("### enqueueWriteData (single dataset) : events = ");
+                                    for (int i = 0; i < events.length; i++) {
+                                        System.out.println("### event[" + i + "] : " + events[i]);
+                                    }
+                                }
+                            }
                             returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, flinkBytesToAllocate, flinkData, hostOffset + flinkOffset, (useDeps) ? events : null);
+                            System.out.println("\n^^^ returnEvent: " + returnEvent);
+                            writtenData = true;
+                            /*
+                             * } else { System.out.println("\n--++ Write buffer for streamout"); returnEvent
+                             * = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize,
+                             * flinkOutBytesToAllocate, flinkDataOut, hostOffset + flinkOffset, (useDeps) ?
+                             * events : null); writtenData = false; }
+                             */
                         }
+
                     }
                 } else {
                     returnEvent = enqueueWriteArrayData(toBuffer(), bufferOffset + arrayHeaderSize, bytesToAllocate - arrayHeaderSize, array, hostOffset, (useDeps) ? events : null);
@@ -341,7 +421,9 @@ public abstract class OCLArrayWrapper<T> implements ObjectBuffer {
                 listEvents.add(returnEvent);
             }
             return useDeps ? listEvents : null;
-        } catch (Exception e) {
+        } catch (
+
+        Exception e) {
             return listEvents;
         }
     }

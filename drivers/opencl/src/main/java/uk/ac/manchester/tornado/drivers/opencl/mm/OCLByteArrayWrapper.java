@@ -53,7 +53,16 @@ public class OCLByteArrayWrapper extends OCLArrayWrapper<byte[]> {
             if (flinkReduction) {
                 res = deviceContext.readBuffer(bufferId, offset, bytes, value, hostOffset, waitEvents);
             } else {
+                System.out.println("### readArrayData: bufferID = " + bufferId);
+                System.out.println("### readArrayData: offset = " + offset);
+                System.out.println("### readArrayData: hostOffset = " + hostOffset);
+                System.out.println("### readArrayData: waitEvents = " + waitEvents);
                 res = deviceContext.readBuffer(bufferId, offset, OCLArrayWrapper.flinkOutBytesToAllocate, OCLArrayWrapper.flinkDataOut, hostOffset, waitEvents);
+                System.out.println("^^^ RESULTS: ");
+                for (int i = 0; i < flinkDataOut.length; i++) {
+                    System.out.print(flinkDataOut[i] + " ");
+                }
+                System.out.println("\n^^^ res: " + res);
             }
             return res;
         } else {
