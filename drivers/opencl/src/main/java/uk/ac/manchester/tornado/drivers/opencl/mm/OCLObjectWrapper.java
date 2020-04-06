@@ -141,7 +141,12 @@ public class OCLObjectWrapper implements ObjectBuffer {
                 // We capture the field by the scope definition of the input
                 // lambda expression
                 try {
-                    wrappedField = new OCLObjectWrapper(device, reflectedField.get(object), batchSize);
+                    Object ob = reflectedField.get(object);
+                    if (ob != null) {
+                        wrappedField = new OCLObjectWrapper(device, ob, batchSize);
+                    } else {
+                        continue;
+                    }
                 } catch (IllegalArgumentException | IllegalAccessException e) {
                     shouldNotReachHere();
                 }
@@ -229,7 +234,7 @@ public class OCLObjectWrapper implements ObjectBuffer {
                 buffer.putLong(wrappedFields[index].toAbsoluteAddress());
             }
         } else {
-            unimplemented("field type %s", fieldType.getName());
+            // unimplemented("field type %s", fieldType.getName());
         }
     }
 

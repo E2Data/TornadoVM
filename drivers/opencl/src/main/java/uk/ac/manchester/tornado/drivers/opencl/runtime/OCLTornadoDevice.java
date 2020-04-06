@@ -426,11 +426,11 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
             }
 
         } else if (!type.isPrimitive() && !type.isArray()) {
-            if (OCLArrayWrapper.flinkTornado) {
-                result = new OCLByteArrayWrapper(device, batchSize);
-            } else {
-                result = new OCLObjectWrapper(device, arg, batchSize);
-            }
+            // if (OCLArrayWrapper.flinkTornado) {
+            // result = new OCLByteArrayWrapper(device, batchSize);
+            // } else {
+            result = new OCLObjectWrapper(device, arg, batchSize);
+            // }
         }
 
         TornadoInternalError.guarantee(result != null, "Unable to create buffer for object: " + type);
