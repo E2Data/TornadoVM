@@ -56,6 +56,7 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoPragmaUnroll;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoTaskSpecialisation;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoThreadScheduler;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoTupleReplacement;
+import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoUdfReferenceRemoval;
 import uk.ac.manchester.tornado.runtime.common.Tornado;
 import uk.ac.manchester.tornado.runtime.graal.compiler.TornadoHighTier;
 import uk.ac.manchester.tornado.runtime.graal.phases.ExceptionSuppression;
@@ -127,6 +128,7 @@ public class OCLHighTier extends TornadoHighTier {
         appendPhase(new SchedulePhase(SchedulePhase.SchedulingStrategy.EARLIEST));
         appendPhase(new TornadoCollectionElimination());
         appendPhase(new TornadoTupleReplacement());
+        appendPhase(new TornadoUdfReferenceRemoval());
         appendPhase(new LoweringPhase(canonicalizer, LoweringTool.StandardLoweringStage.HIGH_TIER));
 
         // After the first Lowering, Tornado replaces reductions with snippets
