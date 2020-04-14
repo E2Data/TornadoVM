@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import uk.ac.manchester.tornado.api.common.SchedulableTask;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.exceptions.TornadoRuntimeException;
+import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.runtime.TornadoCoreRuntime;
 import uk.ac.manchester.tornado.runtime.common.CallStack;
 import uk.ac.manchester.tornado.runtime.common.RuntimeUtilities;
@@ -60,6 +61,7 @@ public class TornadoExecutionContext {
     private CallStack[] stacks;
     private final int[] taskToDevice;
     private int nextTask;
+    private FlinkData finfo;
 
     private HashSet<TornadoAcceleratorDevice> lastDevices;
 
@@ -343,5 +345,13 @@ public class TornadoExecutionContext {
 
     public boolean redeployOnDevice() {
         return this.redeployOnDevice;
+    }
+
+    public void setFinfo(FlinkData finfo) {
+        this.finfo = finfo;
+    }
+
+    public FlinkData getFinfo() {
+        return this.finfo;
     }
 }
