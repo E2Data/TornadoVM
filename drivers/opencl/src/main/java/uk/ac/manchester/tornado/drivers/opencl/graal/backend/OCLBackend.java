@@ -217,7 +217,7 @@ public class OCLBackend extends TornadoBackend<OCLProviders> implements FrameMap
         lookupCode.resolveEvent(parameters, meta, task);
 
         final long address = parameters.getLong(0);
-        System.out.println("HEAP BASE ADDRESS: " + address);
+        // System.out.println("HEAP BASE ADDRESS: " + address);
         Tornado.info("Heap address @ 0x%x on %s ", address, deviceContext.getDevice().getDeviceName());
         return address;
     }
