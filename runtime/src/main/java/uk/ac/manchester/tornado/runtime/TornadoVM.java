@@ -118,7 +118,7 @@ public class TornadoVM extends TornadoLogger {
         events = new int[buffer.getInt()][MAX_EVENTS];
         eventsIndicies = new int[events.length];
 
-        System.out.println("- initialize installedCodes in constructor");
+        // System.out.println("- initialize installedCodes in constructor");
         installedCodes = new TornadoInstalledCode[taskCount];
 
         for (int i = 0; i < events.length; i++) {
@@ -236,7 +236,7 @@ public class TornadoVM extends TornadoLogger {
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
                 FlinkData finfo = graphContext.getFinfo();
-                if (finfo != null) {
+                if (finfo != null && !finfo.isReduction()) {
                     Object ob = finfo.getByteResults();
                     lastEvent = device.ensureAllocated(ob, sizeBatch, objectState);
                 } else {
@@ -269,36 +269,73 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 List<Integer> allEvents;
+
                 if (sizeBatch > 0) {
                     // We need to stream-in when using batches, because the
                     // whole data is not copied yet.
                     if (finfo != null) {
-                        if (objectIndex == 1) {
-                            Object ob = finfo.getFirstByteDataSet();
-                            allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                        } else if (objectIndex == 2) {
-                            Object ob = finfo.getSecondByteDataSet();
-                            allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                        if (finfo.isReduction()) {
+                            if (objectIndex == 1) {
+                                Object ob = finfo.getFirstByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else if (objectIndex == 2) {
+                                Object ob = finfo.getSecondByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else if (objectIndex == 3) {
+                                Object ob = finfo.getThirdByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else if (objectIndex == 4) {
+                                Object ob = finfo.getFourthByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else {
+                                allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
+                            }
                         } else {
-                            allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
+                            if (objectIndex == 1) {
+                                Object ob = finfo.getFirstByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else if (objectIndex == 2) {
+                                Object ob = finfo.getSecondByteDataSet();
+                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
+                            } else {
+                                allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
+                            }
                         }
                     } else {
                         allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
                     }
                 } else {
                     if (finfo != null) {
-                        if (objectIndex == 1) {
-                            Object ob = finfo.getFirstByteDataSet();
-                            allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                        } else if (objectIndex == 2) {
-                            Object ob = finfo.getSecondByteDataSet();
-                            allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                        } else if (objectIndex == 3) {
-                            // streamout array
-                            Object ob = finfo.getByteResults();
-                            allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                        if (finfo.isReduction()) {
+                            if (objectIndex == 1) {
+                                Object ob = finfo.getFirstByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else if (objectIndex == 2) {
+                                Object ob = finfo.getSecondByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else if (objectIndex == 3) {
+                                Object ob = finfo.getThirdByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else if (objectIndex == 4) {
+                                Object ob = finfo.getFourthByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else {
+                                allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
+                            }
                         } else {
-                            allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
+                            if (objectIndex == 1) {
+                                Object ob = finfo.getFirstByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else if (objectIndex == 2) {
+                                Object ob = finfo.getSecondByteDataSet();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else if (objectIndex == 3) {
+                                // streamout array
+                                Object ob = finfo.getByteResults();
+                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                            } else {
+                                allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
+                            }
                         }
                     } else {
                         allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
@@ -419,7 +456,7 @@ public class TornadoVM extends TornadoLogger {
 
                 final int tornadoEventID;
 
-                if (finfo != null) {
+                if (finfo != null && !finfo.isReduction()) {
                     Object ob = finfo.getByteResults();
                     tornadoEventID = device.streamOutBlocking(ob, offset, objectState, waitList);
                 } else {
@@ -470,7 +507,7 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 if (installedCodes[taskIndex] == null) {
-                    System.out.println("- installedCodes is null (first check)");
+                    // System.out.println("- installedCodes is null (first check)");
                     task.mapTo(device);
                     try {
                         task.attachProfiler(timeProfiler);
@@ -484,7 +521,8 @@ public class TornadoVM extends TornadoLogger {
                     } catch (Error | Exception e) {
                         fatal("unable to compile task %s", task.getName());
                     }
-                    System.out.println("- installedCodes try-catch successful: " + installedCodes[taskIndex]);
+                    // System.out.println("- installedCodes try-catch successful: " +
+                    // installedCodes[taskIndex]);
                 }
 
                 if (isWarmup) {
@@ -493,15 +531,16 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 if (installedCodes[taskIndex] == null) {
-                    System.out.println("- installedCodes is null (second check)");
+                    // System.out.println("- installedCodes is null (second check)");
                     // After warming-up, it is possible to get a null pointer in the task-cache due
                     // to lazy compilation for FPGAs. In tha case, we check again the code cache.
                     installedCodes[taskIndex] = device.getCodeFromCache(task);
-                    System.out.println("- installedCodes from cache: " + installedCodes[taskIndex]);
+                    // System.out.println("- installedCodes from cache: " +
+                    // installedCodes[taskIndex]);
                 }
 
                 final TornadoInstalledCode installedCode = installedCodes[taskIndex];
-                System.out.println("- installedCode variable: " + installedCode);
+                // System.out.println("- installedCode variable: " + installedCode);
                 final Access[] accesses = task.getArgumentsAccess();
 
                 if (redeployOnDevice || !stack.isOnDevice()) {
@@ -547,10 +586,10 @@ public class TornadoVM extends TornadoLogger {
                 if (useDependencies) {
                     lastEvent = installedCode.launchWithDeps(stack, metadata, batchThreads, waitList);
                 } else {
-                    System.out.println("- installedCode: " + installedCode);
-                    System.out.println("- stack: " + stack);
-                    System.out.println("- metadata: " + metadata);
-                    System.out.println("- batchThreads: " + batchThreads);
+                    // System.out.println("- installedCode: " + installedCode);
+                    // System.out.println("- stack: " + stack);
+                    // System.out.println("- metadata: " + metadata);
+                    // System.out.println("- batchThreads: " + batchThreads);
                     lastEvent = installedCode.launchWithoutDeps(stack, metadata, batchThreads);
                 }
                 if (eventList != -1) {

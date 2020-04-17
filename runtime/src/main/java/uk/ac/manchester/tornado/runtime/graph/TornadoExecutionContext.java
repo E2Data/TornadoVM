@@ -87,12 +87,12 @@ public class TornadoExecutionContext {
         return stacks;
     }
 
-    public static int streamOutPos;
+    // public static int streamOutPos;
 
     public int insertVariable(Object var) {
         int index = -1;
         if (var == null) {
-            index = streamOutPos;
+            index = this.finfo.getStreamOutPos(); // streamOutPos;
             return index;
         }
         if (var.getClass().isPrimitive() || RuntimeUtilities.isBoxedPrimitiveClass(var.getClass())) {

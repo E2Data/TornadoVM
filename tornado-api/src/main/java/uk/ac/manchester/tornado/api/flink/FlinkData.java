@@ -5,11 +5,15 @@ package uk.ac.manchester.tornado.api.flink;
  */
 public class FlinkData {
 
+    // TODO: Replace individual arrays with queue
     private byte[] firstByteDataSet;
     private byte[] secondByteDataSet;
+    private byte[] thirdByteDataSet;
+    private byte[] fourthByteDataSet;
     private byte[] byteResults;
     private int numberOfResBytes;
     private int streamOutPos;
+    private boolean reduction;
 
     public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, int streamOutPos, int numberOfResBytes) {
         this.firstByteDataSet = firstByteDataSet;
@@ -24,8 +28,12 @@ public class FlinkData {
         this.streamOutPos = streamOutPos;
     }
 
-    public boolean hasSecondDataSet() {
-        return (this.secondByteDataSet != null);
+    public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, byte[] thirdByteDataSet, byte[] fourthByteDataSet) {
+        this.firstByteDataSet = firstByteDataSet;
+        this.secondByteDataSet = secondByteDataSet;
+        this.thirdByteDataSet = thirdByteDataSet;
+        this.fourthByteDataSet = fourthByteDataSet;
+        reduction = true;
     }
 
     public byte[] getFirstByteDataSet() {
@@ -36,11 +44,24 @@ public class FlinkData {
         return secondByteDataSet;
     }
 
+    public byte[] getThirdByteDataSet() {
+        return thirdByteDataSet;
+    }
+
+    public byte[] getFourthByteDataSet() {
+        return fourthByteDataSet;
+    }
+
     public byte[] getByteResults() {
         return byteResults;
     }
 
-    public void setByteResults(byte[] byteResults) {
-        this.byteResults = byteResults;
+    public int getStreamOutPos() {
+        return streamOutPos;
     }
+
+    public boolean isReduction() {
+        return this.reduction;
+    }
+
 }
