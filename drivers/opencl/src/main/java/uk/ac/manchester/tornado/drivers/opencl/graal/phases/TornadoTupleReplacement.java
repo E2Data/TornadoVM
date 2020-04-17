@@ -1046,8 +1046,6 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                         Constant nextPosition = new RawConstant(i);
                                         ConstantNode nextIndxOffset = new ConstantNode(nextPosition, StampFactory.positiveInt());
                                         graph.addWithoutUnique(nextIndxOffset);
-                                        System.out.println("next: " + nextIndxOffset);
-                                        System.out.println("indexoff: " + indexOffset);
                                         AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
                                         graph.addWithoutUnique(nextTupleIndx);
                                         ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, null, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
