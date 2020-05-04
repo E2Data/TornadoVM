@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, APT Group, Department of Computer Science,
  * School of Engineering, The University of Manchester. All rights reserved.
- * Copyright (c) 2018, 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2018, 2020, APT Group, Department of Computer Science,
  * The University of Manchester. All rights reserved.
  * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -325,7 +325,7 @@ public class OCLBackend extends TornadoBackend<OCLProviders> implements FrameMap
         if (deviceContext.getInstalledCode("internal", OCLCodeCache.LOOKUP_BUFFER_KERNEL_NAME) != null) {
             lookupCode = deviceContext.getInstalledCode("internal", OCLCodeCache.LOOKUP_BUFFER_KERNEL_NAME);
         } else {
-            lookupCode = codeCache.installEntryPointForBinaryForFPGAs(meta.getId(), Paths.get(OCLCodeCache.FPGA_BIN_LOCATION), OCLCodeCache.LOOKUP_BUFFER_KERNEL_NAME);
+            lookupCode = codeCache.installEntryPointForBinaryForFPGAs(meta.getId(), Paths.get(OCLCodeCache.fpgaBinLocation), OCLCodeCache.LOOKUP_BUFFER_KERNEL_NAME);
         }
 
         if (lookupCode != null) {

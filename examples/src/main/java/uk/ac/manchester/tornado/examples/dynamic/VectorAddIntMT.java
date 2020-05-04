@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2020, APT Group, Department of Computer Science,
  * The University of Manchester.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,8 +35,14 @@ public class VectorAddIntMT {
         int balk = array1.length / threads;
         for (int i = 0; i < threads; i++) {
             final int current = i;
+            int lowBound = current * balk;
+            int upperBound = (current + 1) * balk;
+            if(current==threads-1) {
+                upperBound = array1.length;
+            }
+            int finalUpperBound = upperBound;
             th[i] = new Thread(() -> {
-                for (int k = current * balk; k < (current + 1) * balk; k++) {
+                for (int k = lowBound; k < finalUpperBound; k++) {
                     result[k] = array1[k] + array2[k];
                 }
             });
@@ -113,7 +119,7 @@ public class VectorAddIntMT {
                     break;
                 case "multi":
                     start = System.nanoTime();
-                    vectorAddThreads(a, b, c, maxThreadCount, th);
+                    vectorAddThreads(a, b, result, maxThreadCount, th);
                     end = System.nanoTime();
                     break;
                 default:

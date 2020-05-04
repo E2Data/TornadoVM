@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2020, APT Group, Department of Computer Science,
  * The University of Manchester.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,8 +47,14 @@ public class DFTMT {
         int balk = inreal.length / threads;
         for (int i = 0; i < threads; i++) {
             final int current = i;
+            int lowBound = current * balk;
+            int upperBound = (current + 1) * balk;
+            if(current==threads-1) {
+                upperBound = inreal.length;
+            }
+            int finalUpperBound = upperBound;
             th[i] = new Thread(() -> {
-                for (int k = current * balk; k < (current + 1) * balk; k++) {
+                for (int k = lowBound; k < finalUpperBound; k++) {
                     float sumreal = 0;
                     float sumimag = 0;
                     for (int t = 0; t < inreal.length; t++) { // For each input element

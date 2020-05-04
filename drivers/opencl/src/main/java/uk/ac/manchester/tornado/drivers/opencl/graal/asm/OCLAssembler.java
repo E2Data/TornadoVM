@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2018, 2020, APT Group, Department of Computer Science,
  * The University of Manchester. All rights reserved.
  * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -516,6 +516,7 @@ public final class OCLAssembler extends Assembler {
         public static final OCLTernaryIntrinsic VSTORE8 = new OCLTernaryIntrinsic("vstore8");
         public static final OCLTernaryIntrinsic VSTORE16 = new OCLTernaryIntrinsic("vstore16");
         public static final OCLTernaryIntrinsic CLAMP = new OCLTernaryIntrinsic("clamp");
+        public static final OCLTernaryIntrinsic FMA = new OCLTernaryIntrinsic("fma");
         // @formatter:on
 
         protected OCLTernaryIntrinsic(String opcode) {

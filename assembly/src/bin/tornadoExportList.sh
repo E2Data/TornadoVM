@@ -2,11 +2,11 @@
 
 #
 # This file is part of Tornado: A heterogeneous programming framework:
-# https://github.com/beehive-lab/tornado
+# https://github.com/beehive-lab/tornadovm
 #
 # Copyright (c) 2020, APT Group, Department of Computer Science,
-# School of Engineering, The University of Manchester. All rights reserved.
-# Copyright (c) 2013-2019, APT Group, School of Computer Science,
+# Department of Engineering, The University of Manchester. All rights reserved.
+# Copyright (c) 2013-2019, APT Group, Department of Computer Science,
 # The University of Manchester. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
@@ -98,4 +98,5 @@ PACKAGE_LIST=(
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.core.match=tornado.drivers.opencl
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.nodes.memory.address=tornado.drivers.opencl,tornado.runtime
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.nodes.type=tornado.drivers.opencl
+--add-exports jdk.internal.vm.compiler/org.graalvm.compiler.replacements.nodes=tornado.runtime
 )

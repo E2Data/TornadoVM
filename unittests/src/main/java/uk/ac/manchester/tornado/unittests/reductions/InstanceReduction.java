@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2020, APT Group, Department of Computer Science,
  * The University of Manchester.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,5 +70,4 @@ public class InstanceReduction extends TornadoTestBase {
 
         assertEquals(expected[0], result[0], 0.1f);
     }
-
 }

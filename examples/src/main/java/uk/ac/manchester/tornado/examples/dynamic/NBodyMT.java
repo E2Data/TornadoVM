@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, APT Group, School of Computer Science,
+ * Copyright (c) 2020, APT Group, Department of Computer Science,
  * The University of Manchester.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,9 +38,14 @@ public class NBodyMT {
         int balk = numBodies / maxThreads;
         for (int idx = 0; idx < maxThreads; idx++) {
             final int current = idx;
+            int lowBound = current * balk;
+            int upperBound = (current + 1) * balk;
+            if(current==maxThreads-1) {
+                upperBound = numBodies;
+            }
+            int finalUpperBound = upperBound;
             threads[idx] = new Thread(() -> {
-                for (int kc = current * balk; kc < (current + 1) * balk; kc++) {
-                    // result[k] = array1[k] + array2[k];
+                for (int kc = lowBound; kc < finalUpperBound; kc++) {
                     int body = 4 * kc;
                     float[] acc = new float[] { 0.0f, 0.0f, 0.0f };
                     for (int j = 0; j < numBodies; j++) {

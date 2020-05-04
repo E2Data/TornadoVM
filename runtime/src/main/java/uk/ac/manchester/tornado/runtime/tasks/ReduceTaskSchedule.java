@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2020, APT Group, Department of Computer Science,
  * School of Engineering, The University of Manchester. All rights reserved.
- * Copyright (c) 2013-2019, APT Group, School of Computer Science,
+ * Copyright (c) 2013-2020, APT Group, Department of Computer Science,
  * The University of Manchester. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -328,8 +328,10 @@ class ReduceTaskSchedule {
             }
 
             // Add the rest of the variables
-            for (Entry<Object, Object> pair : originalReduceVariables.entrySet()) {
-                streamInObjects.add(pair.getValue());
+            if (TornadoOptions.EXPERIMENTAL_REDUCE_STREAM_ALL_IN) {
+                for (Entry<Object, Object> pair : originalReduceVariables.entrySet()) {
+                    streamInObjects.add(pair.getValue());
+                }
             }
 
             TornadoTaskSchedule.performStreamInThread(rewrittenTaskSchedule, streamInObjects);
@@ -612,14 +614,28 @@ class ReduceTaskSchedule {
                 return Runtime.getRuntime().availableProcessors() + 1;
             case GPU:
             case ACCELERATOR:
-                return inputSize > calculateGroupSize(deviceToRun, inputSize) ? (inputSize / calculateGroupSize(deviceToRun, inputSize)) + 1 : 2;
+                return inputSize > calculateAcceleratorGroupSize(deviceToRun, inputSize) ? (inputSize / calculateAcceleratorGroupSize(deviceToRun, inputSize)) + 1 : 2;
             default:
                 break;
         }
         return 0;
     }
 
-    private static int calculateGroupSize(TornadoDevice device, long globalWorkSize) {
+    /**
+     * It computes the right local work group size for GPUs/FPGAs.
+     * 
+     * @param device
+     *            Input device.
+     * @param globalWorkSize
+     *            Number of global threads to run.
+     * @return Local Work Threads.
+     */
+    private static int calculateAcceleratorGroupSize(TornadoDevice device, long globalWorkSize) {
+
+        if (device.getPlatformName().contains("AMD")) {
+            return DEFAULT_GPU_WORK_GROUP;
+        }
+
         int maxBlockSize = (int) device.getDeviceMaxWorkgroupDimensions()[0];
 
         if (maxBlockSize == globalWorkSize) {
