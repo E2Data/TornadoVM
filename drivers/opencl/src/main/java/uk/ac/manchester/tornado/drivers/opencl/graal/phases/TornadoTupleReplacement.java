@@ -7,14 +7,18 @@ import jdk.vm.ci.meta.RawConstant;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.FixedGuardNode;
+import org.graalvm.compiler.nodes.FixedNode;
+import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StartNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.calc.AddNode;
+import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.calc.MulNode;
 import org.graalvm.compiler.nodes.extended.BoxNode;
 import org.graalvm.compiler.nodes.extended.UnboxNode;
+import org.graalvm.compiler.nodes.java.InstanceOfNode;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
 import org.graalvm.compiler.nodes.java.LoadIndexedNode;
 import org.graalvm.compiler.nodes.java.StoreIndexedNode;
@@ -99,7 +103,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             // Tuples have at least 2 fields
                                             // create loadindexed for the first field (f0) of the tuple
                                             LoadIndexedNode ldf0;
-                                            ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
+                                            ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, null, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
                                             graph.addWithoutUnique(ldf0);
                                             graph.replaceFixed(idx, ldf0);
                                             loadindxNodes.add(ldf0);
@@ -114,7 +118,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                                 AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
                                                 graph.addWithoutUnique(nextTupleIndx);
                                                 // create loadindexed for the next field of the tuple
-                                                ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                                ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, null, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
                                                 // }
                                                 graph.addWithoutUnique(ldfn);
                                                 // graph.addAfterFixed(loadindxNodes.get((loadindxNodes.size() - 1)), ldfn);
@@ -202,24 +206,24 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     if (n instanceof StoreIndexedNode) {
                                         if (returnTupleSize == 2) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
                                             Constant retNextPosition = new RawConstant(1);
                                             ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
                                             break;
                                         } else if (returnTupleSize == 3) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
 
                                             Constant retNextPosition = new RawConstant(1);
@@ -227,8 +231,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
@@ -240,8 +244,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             graph.addWithoutUnique(nextRetTupleIndxF3);
                                             StoreIndexedNode newst3;
                                             // if (TornadoTupleOffset.differentTypesRet) {
-                                            newst3 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
+                                            newst3 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, null, null, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
                                             // } else {
                                             // newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(),
                                             // nextRetTupleIndxF3, JavaKind.fromJavaClass(int.class),
@@ -253,16 +257,16 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             break;
                                         } else if (returnTupleSize == 4) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
                                             Constant retNextPosition = new RawConstant(1);
                                             ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
@@ -272,8 +276,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             AddNode nextRetTupleIndxF3 = new AddNode(retNextIndxOffsetF3, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndxF3);
                                             StoreIndexedNode newst3;
-                                            newst3 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
+                                            newst3 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, null, null, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
                                             storesWithInputs.put(storeTupleInputs.get(2), newst3);
                                             graph.addAfterFixed(newst2, newst3);
                                             Constant retNextPositionF4 = new RawConstant(3);
@@ -282,8 +286,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             AddNode nextRetTupleIndxF4 = new AddNode(retNextIndxOffsetF4, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndxF4);
                                             StoreIndexedNode newst4;
-                                            newst4 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst3.array(), nextRetTupleIndxF4, JavaKind.fromJavaClass(returnFieldKind.get(3)), storeTupleInputs.get(3)));
+                                            newst4 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst3.array(), nextRetTupleIndxF4, null, null, JavaKind.fromJavaClass(returnFieldKind.get(3)), storeTupleInputs.get(3)));
                                             storesWithInputs.put(storeTupleInputs.get(3), newst4);
                                             graph.addAfterFixed(newst3, newst4);
                                             break;
@@ -393,7 +397,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             // Tuples have at least 2 fields
                                             // create loadindexed for the first field (f0) of the tuple
                                             LoadIndexedNode ldf0;
-                                            ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
+                                            ldf0 = new LoadIndexedNode(null, idx.array(), indexOffset, null, JavaKind.fromJavaClass(tupleFieldKind.get(0)));
                                             graph.addWithoutUnique(ldf0);
                                             graph.replaceFixed(idx, ldf0);
                                             loadindxNodes.add(ldf0);
@@ -408,7 +412,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                                 AddNode nextTupleIndx = new AddNode(nextIndxOffset, indexOffset);
                                                 graph.addWithoutUnique(nextTupleIndx);
                                                 // create loadindexed for the next field of the tuple
-                                                ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
+                                                ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, null, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
                                                 // }
                                                 graph.addWithoutUnique(ldfn);
                                                 graph.addAfterFixed(loadindxNodes.get((loadindxNodes.size() - 1)), ldfn);
@@ -492,24 +496,24 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     if (n instanceof StoreIndexedNode) {
                                         if (returnTupleSize == 2) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
                                             Constant retNextPosition = new RawConstant(1);
                                             ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
                                             break;
                                         } else if (returnTupleSize == 3) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
 
                                             Constant retNextPosition = new RawConstant(1);
@@ -517,8 +521,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
@@ -530,8 +534,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             graph.addWithoutUnique(nextRetTupleIndxF3);
                                             StoreIndexedNode newst3;
                                             // if (TornadoTupleOffset.differentTypesRet) {
-                                            newst3 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
+                                            newst3 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, null, null, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
                                             // } else {
                                             // newst3 = graph.addOrUnique(new StoreIndexedNode(newst2.array(),
                                             // nextRetTupleIndxF3, JavaKind.fromJavaClass(int.class),
@@ -543,16 +547,16 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             break;
                                         } else if (returnTupleSize == 4) {
                                             StoreIndexedNode st = (StoreIndexedNode) n;
-                                            StoreIndexedNode newst = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), returnIndexOffset, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
+                                            StoreIndexedNode newst = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), returnIndexOffset, null, null, JavaKind.fromJavaClass(returnFieldKind.get(0)), storeTupleInputs.get(0)));
                                             storesWithInputs.put(storeTupleInputs.get(0), newst);
                                             Constant retNextPosition = new RawConstant(1);
                                             ConstantNode retNextIndxOffset = new ConstantNode(retNextPosition, StampFactory.positiveInt());
                                             graph.addWithoutUnique(retNextIndxOffset);
                                             AddNode nextRetTupleIndx = new AddNode(retNextIndxOffset, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndx);
-                                            StoreIndexedNode newst2 = graph
-                                                    .addOrUnique(new StoreIndexedNode(st.array(), nextRetTupleIndx, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
+                                            StoreIndexedNode newst2 = graph.addOrUnique(
+                                                    new StoreIndexedNode(st.array(), nextRetTupleIndx, null, null, JavaKind.fromJavaClass(returnFieldKind.get(1)), storeTupleInputs.get(1)));
                                             storesWithInputs.put(storeTupleInputs.get(1), newst2);
                                             graph.replaceFixed(st, newst);
                                             graph.addAfterFixed(newst, newst2);
@@ -562,8 +566,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             AddNode nextRetTupleIndxF3 = new AddNode(retNextIndxOffsetF3, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndxF3);
                                             StoreIndexedNode newst3;
-                                            newst3 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
+                                            newst3 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst2.array(), nextRetTupleIndxF3, null, null, JavaKind.fromJavaClass(returnFieldKind.get(2)), storeTupleInputs.get(2)));
                                             storesWithInputs.put(storeTupleInputs.get(2), newst3);
                                             graph.addAfterFixed(newst2, newst3);
                                             Constant retNextPositionF4 = new RawConstant(3);
@@ -572,8 +576,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             AddNode nextRetTupleIndxF4 = new AddNode(retNextIndxOffsetF4, returnIndexOffset);
                                             graph.addWithoutUnique(nextRetTupleIndxF4);
                                             StoreIndexedNode newst4;
-                                            newst4 = graph
-                                                    .addOrUnique(new StoreIndexedNode(newst3.array(), nextRetTupleIndxF4, JavaKind.fromJavaClass(returnFieldKind.get(3)), storeTupleInputs.get(3)));
+                                            newst4 = graph.addOrUnique(
+                                                    new StoreIndexedNode(newst3.array(), nextRetTupleIndxF4, null, null, JavaKind.fromJavaClass(returnFieldKind.get(3)), storeTupleInputs.get(3)));
                                             storesWithInputs.put(storeTupleInputs.get(3), newst4);
                                             graph.addAfterFixed(newst3, newst4);
                                             break;
@@ -869,20 +873,24 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
                     }
 
-                    if (returnTuple) {
-                        HashMap<LoadFieldNode, LoadIndexedNode> fieldToIndex = new HashMap<>();
+                    HashMap<LoadFieldNode, LoadIndexedNode> fieldToIndex = new HashMap<>();
 
-                        int j = 0;
-                        for (Node n : graph.getNodes()) {
-                            if (n instanceof LoadFieldNode) {
-                                LoadFieldNode ld = (LoadFieldNode) n;
-                                if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
-                                    fieldToIndex.put(ld, loadindxNodes.get(j));
-                                    j++;
-                                }
+                    int j = 0;
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof LoadFieldNode) {
+                            LoadFieldNode ld = (LoadFieldNode) n;
+                            if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
+                                fieldToIndex.put(ld, loadindxNodes.get(j));
+                                j++;
                             }
                         }
+                    }
 
+                    for (LoadFieldNode ldf : fieldToIndex.keySet()) {
+                        replaceFieldAtUsages(fieldToIndex.get(ldf), ldf);
+                    }
+
+                    if (returnTuple) {
                         for (Node n : storesWithInputs.keySet()) {
                             if (fieldToIndex.containsKey(n)) {
                                 StoreIndexedNode st = storesWithInputs.get(n);
@@ -894,6 +902,15 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                          * int k = 0; for (StoreIndexedNode st : storesWithInputs.values()) {
                          * st.replaceFirstInput(st.index(), loadindxNodes.get(k).index()); k++; }
                          */
+                    } else {
+                        for (Node n : graph.getNodes()) {
+                            if (n instanceof StoreIndexedNode) {
+                                StoreIndexedNode st = (StoreIndexedNode) n;
+                                StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), null, null, JavaKind.fromJavaClass(storeJavaKind), st.value()));
+                                graph.replaceFixed(st, newst);
+                                break;
+                            }
+                        }
                     }
 
                     // set usages of unbox nodes to field nodes
@@ -907,18 +924,12 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         }
                     }
 
-                    if (!returnTuple) {
-                        // replace storeindexednode with a new storeindexednode that has the appropriate
-                        // javakind
-                        for (Node n : graph.getNodes()) {
-                            if (n instanceof StoreIndexedNode) {
-                                StoreIndexedNode st = (StoreIndexedNode) n;
-                                StoreIndexedNode newst = graph.addOrUnique(new StoreIndexedNode(st.array(), st.index(), null, null, JavaKind.fromJavaClass(storeJavaKind), st.value()));
-                                graph.replaceFixed(st, newst);
-                                break;
-                            }
-                        }
-                    }
+                    // if (!returnTuple) {
+                    // // replace storeindexednode with a new storeindexednode that has the
+                    // appropriate
+                    // // javakind
+                    //
+                    // }
 
                     Node pred = null;
                     ArrayList<Node> nodesToDelete = new ArrayList<>();
@@ -950,7 +961,6 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
                     }
 
-                    // delete nodes associated with Tuples
                     for (Node n : nodesToDelete) {
                         if (n.successors().first() instanceof StoreIndexedNode) {
                             if (returnTuple) {
@@ -963,10 +973,25 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                             for (Node u : n.usages()) {
                                 u.replaceFirstInput(n, n.inputs().first());
                             }
+                            Node npred = n.predecessor();
+                            Node nsuc = n.successors().first();
+                            n.replaceFirstSuccessor(nsuc, null);
+                            n.replaceAtPredecessor(nsuc);
+                            npred.replaceFirstSuccessor(n, nsuc);
                             n.safeDelete();
                         } else {
-                            if (!(n instanceof ConstantNode))
-                                n.safeDelete();
+                            if (!(n instanceof ConstantNode)) {
+                                if (n instanceof FixedNode) {
+                                    Node npred = n.predecessor();
+                                    Node nsuc = n.successors().first();
+                                    n.replaceFirstSuccessor(nsuc, null);
+                                    n.replaceAtPredecessor(nsuc);
+                                    npred.replaceFirstSuccessor(n, nsuc);
+                                    n.safeDelete();
+                                } else {
+                                    n.safeDelete();
+                                }
+                            }
                         }
                     }
 
@@ -976,8 +1001,11 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 for (Node u : n.usages()) {
                                     u.replaceFirstInput(n, n.inputs().first());
                                 }
-                                Node boxPred = n.predecessor();
-                                boxPred.replaceFirstSuccessor(n, n.successors().first());
+                                Node npred = n.predecessor();
+                                Node nsuc = n.successors().first();
+                                n.replaceFirstSuccessor(nsuc, null);
+                                n.replaceAtPredecessor(nsuc);
+                                npred.replaceFirstSuccessor(n, nsuc);
                                 n.safeDelete();
                             }
                         }
@@ -1455,4 +1483,14 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
         return (UnboxNode) suc;
     }
 
+    public void replaceFieldAtUsages(LoadIndexedNode lindx, Node usage) {
+        for (Node us : usage.usages()) {
+            if (us instanceof InstanceOfNode || us instanceof PiNode || us instanceof FixedGuardNode || us instanceof IsNullNode) {
+                replaceFieldAtUsages(lindx, us);
+            } else {
+                us.replaceAtUsages(lindx);
+                return;
+            }
+        }
+    }
 }

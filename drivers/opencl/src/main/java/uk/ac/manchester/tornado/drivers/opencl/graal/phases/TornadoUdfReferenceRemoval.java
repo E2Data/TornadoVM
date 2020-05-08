@@ -15,14 +15,14 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
     @Override
     protected void run(StructuredGraph graph, TornadoHighTierContext context) {
 
-        LoadFieldNode ldmdm = null;
+        LoadFieldNode ldmd = null;
         LoadFieldNode ldudf = null;
         ArrayList<Node> nodesToBeDeleted = new ArrayList<>();
 
         for (Node n : graph.getNodes()) {
             if (n instanceof LoadFieldNode) {
-                if (n.toString().contains("mdm")) {
-                    ldmdm = (LoadFieldNode) n;
+                if (n.toString().contains("mdm") || n.toString().contains("mdr")) {
+                    ldmd = (LoadFieldNode) n;
                 }
                 if (n.toString().contains("udf")) {
                     ldudf = (LoadFieldNode) n;
@@ -30,21 +30,21 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
             }
         }
 
-        if (ldmdm != null && ldudf != null) {
-            nodesToBeDeleted.add(ldmdm);
+        if (ldmd != null && ldudf != null) {
+            nodesToBeDeleted.add(ldmd);
             nodesToBeDeleted.add(ldudf);
 
             // start with LoadField#mdm
             boolean isPredFixedGuardMdm = false;
-            Node predmdm = ldmdm.predecessor();
+            Node predmdm = ldmd.predecessor();
             if (predmdm instanceof FixedGuardNode) {
-                predmdm = getLdPred(ldmdm, nodesToBeDeleted);
+                predmdm = getLdPred(ldmd, nodesToBeDeleted);
                 isPredFixedGuardMdm = true;
             }
 
-            Node sucmdm = ldmdm.successors().first();
+            Node sucmdm = ldmd.successors().first();
             if (sucmdm instanceof FixedGuardNode) {
-                sucmdm = getLdSuc(ldmdm, nodesToBeDeleted);
+                sucmdm = getLdSuc(ldmd, nodesToBeDeleted);
             }
 
             Node sucmdmPrev = sucmdm.predecessor();
@@ -54,8 +54,8 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
                 predSuc.replaceAtPredecessor(sucmdm);
                 predmdm.replaceFirstSuccessor(predSuc, sucmdm);
             } else {
-                ldmdm.replaceAtPredecessor(sucmdm);
-                predmdm.replaceFirstSuccessor(ldmdm, sucmdm);
+                ldmd.replaceAtPredecessor(sucmdm);
+                predmdm.replaceFirstSuccessor(ldmd, sucmdm);
             }
 
             // continue with LoadField#udf
@@ -70,7 +70,6 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
             if (sucudf instanceof FixedGuardNode) {
                 sucudf = getLdSuc(ldudf, nodesToBeDeleted);
             }
-
             Node sucudfPrev = sucudf.predecessor();
             sucudfPrev.replaceFirstSuccessor(sucudf, null);
             if (isPredFixedGuardUdf) {
