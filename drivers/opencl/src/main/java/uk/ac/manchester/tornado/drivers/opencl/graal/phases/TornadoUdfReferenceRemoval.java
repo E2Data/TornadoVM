@@ -2,6 +2,9 @@ package uk.ac.manchester.tornado.drivers.opencl.graal.phases;
 
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.FixedGuardNode;
+import org.graalvm.compiler.nodes.FrameState;
+import org.graalvm.compiler.nodes.ParameterNode;
+import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.extended.UnboxNode;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
@@ -81,7 +84,38 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
                 predudf.replaceFirstSuccessor(ldudf, sucudf);
             }
 
-            for (Node n : nodesToBeDeleted) {
+            ArrayList<Node> nodesToBeDeletedTotal = new ArrayList<>();
+
+            for (int i = 0; i < nodesToBeDeleted.size(); i++) {
+                Node n = nodesToBeDeleted.get(i);
+                nodesToBeDeletedTotal.add(n);
+                for (Node in : n.inputs()) {
+                    if (!(in instanceof ParameterNode)) {
+                        if (!nodesToBeDeletedTotal.contains(in)) {
+                            nodesToBeDeletedTotal.add(in);
+                        }
+                    } else {
+                        n.replaceFirstInput(in, null);
+                    }
+
+                }
+                for (Node us : n.usages()) {
+                    if (!nodesToBeDeletedTotal.contains(us)) {
+                        nodesToBeDeletedTotal.add(us);
+                    }
+
+                }
+            }
+
+            for (Node n : nodesToBeDeletedTotal) {
+                for (Node us : n.usages()) {
+                    if (us instanceof FrameState) {
+                        // Remove node from FrameState before deleting
+                        FrameState f = (FrameState) us;
+                        f.values().remove(n);
+                    }
+                    us.replaceFirstInput(us, null);
+                }
                 n.safeDelete();
             }
 

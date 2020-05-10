@@ -353,10 +353,23 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 for (Node u : n.usages()) {
                                     u.replaceFirstInput(n, n.inputs().first());
                                 }
+                                Node npred = n.predecessor();
+                                Node nsuc = n.successors().first();
+                                n.replaceFirstSuccessor(nsuc, null);
+                                n.replaceAtPredecessor(nsuc);
+                                npred.replaceFirstSuccessor(n, nsuc);
                                 n.safeDelete();
                             } else {
-                                if (!(n instanceof ConstantNode))
-                                    n.safeDelete();
+                                if (!(n instanceof ConstantNode)) {
+                                    if (n instanceof FixedNode) {
+                                        Node npred = n.predecessor();
+                                        Node nsuc = n.successors().first();
+                                        n.replaceFirstSuccessor(nsuc, null);
+                                        n.replaceAtPredecessor(nsuc);
+                                        npred.replaceFirstSuccessor(n, nsuc);
+                                        n.safeDelete();
+                                    }
+                                }
                             }
                         }
 
@@ -366,8 +379,11 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     for (Node u : n.usages()) {
                                         u.replaceFirstInput(n, n.inputs().first());
                                     }
-                                    Node boxPred = n.predecessor();
-                                    boxPred.replaceFirstSuccessor(n, n.successors().first());
+                                    Node npred = n.predecessor();
+                                    Node nsuc = n.successors().first();
+                                    n.replaceFirstSuccessor(nsuc, null);
+                                    n.replaceAtPredecessor(nsuc);
+                                    npred.replaceFirstSuccessor(n, nsuc);
                                     n.safeDelete();
                                 }
                             }
@@ -643,10 +659,23 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                 for (Node u : n.usages()) {
                                     u.replaceFirstInput(n, n.inputs().first());
                                 }
+                                Node npred = n.predecessor();
+                                Node nsuc = n.successors().first();
+                                n.replaceFirstSuccessor(nsuc, null);
+                                n.replaceAtPredecessor(nsuc);
+                                npred.replaceFirstSuccessor(n, nsuc);
                                 n.safeDelete();
                             } else {
-                                if (!(n instanceof ConstantNode))
+                                if (!(n instanceof ConstantNode)) {
+                                    if (n instanceof FixedNode) {
+                                        Node npred = n.predecessor();
+                                        Node nsuc = n.successors().first();
+                                        n.replaceFirstSuccessor(nsuc, null);
+                                        n.replaceAtPredecessor(nsuc);
+                                        npred.replaceFirstSuccessor(n, nsuc);
+                                    }
                                     n.safeDelete();
+                                }
                             }
                         }
 
@@ -656,8 +685,11 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     for (Node u : n.usages()) {
                                         u.replaceFirstInput(n, n.inputs().first());
                                     }
-                                    Node boxPred = n.predecessor();
-                                    boxPred.replaceFirstSuccessor(n, n.successors().first());
+                                    Node npred = n.predecessor();
+                                    Node nsuc = n.successors().first();
+                                    n.replaceFirstSuccessor(nsuc, null);
+                                    n.replaceAtPredecessor(nsuc);
+                                    npred.replaceFirstSuccessor(n, nsuc);
                                     n.safeDelete();
                                 }
                             }
@@ -1156,7 +1188,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
                 int i = 0;
                 for (Node n : graph.getNodes()) {
-                    if (n instanceof LoadFieldNode && ((LoadFieldNode) n).field().toString().contains("Tuple")) {
+                    if (n instanceof LoadFieldNode && ((LoadFieldNode) n).field().toString().contains("Tuple") && !(n.predecessor().predecessor() instanceof StartNode)) {
                         LoadFieldNode lf = (LoadFieldNode) n;
                         innerLoadFieldNodes[i] = lf;
                         i++;
@@ -1443,13 +1475,17 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
                 // remove dummy loadIndex node
                 Node pred = secondInput.predecessor();
-                Node suc = secondInput.successors().first();
+                Node lf = secondInput.successors().first();
+                Node fixG = lf.successors().first();
+                Node suc = fixG.successors().first();
 
-                secondInput.replaceFirstSuccessor(suc, null);
+                fixG.replaceFirstSuccessor(suc, null);
                 secondInput.replaceAtPredecessor(suc);
                 pred.replaceFirstSuccessor(secondInput, suc);
 
+                lf.safeDelete();
                 secondInput.safeDelete();
+                fixG.safeDelete();
 
             }
         }
