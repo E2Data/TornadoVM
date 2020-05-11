@@ -28,6 +28,11 @@ public class FlinkData {
         this.streamOutPos = streamOutPos;
     }
 
+    public FlinkData(byte[] firstByteDataSet, int numberOfResBytes) {
+        this.firstByteDataSet = firstByteDataSet;
+        this.byteResults = new byte[numberOfResBytes];
+    }
+
     public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, byte[] thirdByteDataSet, byte[] fourthByteDataSet) {
         this.firstByteDataSet = firstByteDataSet;
         this.secondByteDataSet = secondByteDataSet;
@@ -62,6 +67,10 @@ public class FlinkData {
 
     public boolean isReduction() {
         return this.reduction;
+    }
+
+    public void setReduction() {
+        this.reduction = true;
     }
 
 }
