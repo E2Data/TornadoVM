@@ -328,7 +328,12 @@ public class TornadoVM extends TornadoLogger {
                                 allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
                             } else if (objectIndex == 2) {
                                 Object ob = finfo.getSecondByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                if (ob != null) {
+                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                } else {
+                                    ob = finfo.getByteResults();
+                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                }
                             } else if (objectIndex == 3) {
                                 // streamout array
                                 Object ob = finfo.getByteResults();

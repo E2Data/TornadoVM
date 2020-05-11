@@ -604,6 +604,7 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
 
     private void rewriteTaskForReduceSkeleton(MetaReduceCodeAnalysis analysisTaskSchedule) {
         reduceTaskScheduleMeta = new ReduceTaskSchedule(this.getId(), taskPackages, streamInObjects, streamOutObjects, graph);
+        reduceTaskScheduleMeta.setFlinkData(this.graphContext.getFinfo());
         reduceTaskScheduleMeta.scheduleWithReduction(analysisTaskSchedule);
         reduceExpressionRewritten = true;
     }
@@ -1550,4 +1551,5 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
     public String getProfileLog() {
         return bufferLogProfiler.toString();
     }
+
 }

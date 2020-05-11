@@ -44,6 +44,7 @@ import uk.ac.manchester.tornado.api.common.TaskPackage;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
 import uk.ac.manchester.tornado.api.exceptions.TornadoRuntimeException;
+import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 import uk.ac.manchester.tornado.runtime.TornadoCoreRuntime;
 import uk.ac.manchester.tornado.runtime.analyzer.CodeAnalysis;
@@ -75,6 +76,7 @@ class ReduceTaskSchedule {
     private TaskSchedule rewrittenTaskSchedule;
     private HashMap<Object, LinkedList<Integer>> reduceOperandTable;
     private CachedGraph<?> sketchGraph;
+    private FlinkData flinkData;
 
     ReduceTaskSchedule(String taskScheduleID, ArrayList<TaskPackage> taskPackages, ArrayList<Object> streamInObjects, ArrayList<Object> streamOutObjects, CachedGraph<?> graph) {
         this.taskPackages = taskPackages;
@@ -459,6 +461,8 @@ class ReduceTaskSchedule {
         }
 
         rewrittenTaskSchedule = new TaskSchedule(taskScheduleReduceName);
+        rewrittenTaskSchedule.flinkInfo(flinkData);
+
         updateStreamInOutVariables(metaReduceTable.getTable());
 
         // Compose Task Schedule
@@ -493,7 +497,6 @@ class ReduceTaskSchedule {
             }
 
             rewrittenTaskSchedule.addTask(taskPackages.get(taskNumber));
-
             // Add extra task with the final reduction
             if (tableReduce.containsKey(taskNumber)) {
 
@@ -651,5 +654,9 @@ class ReduceTaskSchedule {
 
     private ArrayList<Thread> getHostThreadReduction() {
         return this.threadSequentialExecution;
+    }
+
+    public void setFlinkData(FlinkData flinkData) {
+        this.flinkData = flinkData;
     }
 }
