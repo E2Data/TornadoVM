@@ -275,16 +275,16 @@ public class TornadoVM extends TornadoLogger {
                     // whole data is not copied yet.
                     if (finfo != null) {
                         if (finfo.isReduction()) {
-                            if (objectIndex == 1) {
+                            if (objectIndex == 0) {
                                 Object ob = finfo.getFirstByteDataSet();
                                 allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 2) {
+                            } else if (objectIndex == 1) {
                                 Object ob = finfo.getSecondByteDataSet();
                                 allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 3) {
+                            } else if (objectIndex == 2) {
                                 Object ob = finfo.getThirdByteDataSet();
                                 allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 4) {
+                            } else if (objectIndex == 3) {
                                 Object ob = finfo.getFourthByteDataSet();
                                 allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
                             } else {
@@ -307,16 +307,16 @@ public class TornadoVM extends TornadoLogger {
                 } else {
                     if (finfo != null) {
                         if (finfo.isReduction()) {
-                            if (objectIndex == 1) {
+                            if (objectIndex == 0) {
                                 Object ob = finfo.getFirstByteDataSet();
                                 allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 2) {
+                            } else if (objectIndex == 1) {
                                 Object ob = finfo.getSecondByteDataSet();
                                 allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 3) {
+                            } else if (objectIndex == 2) {
                                 Object ob = finfo.getThirdByteDataSet();
                                 allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 4) {
+                            } else if (objectIndex == 3) {
                                 Object ob = finfo.getFourthByteDataSet();
                                 allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
                             } else {
