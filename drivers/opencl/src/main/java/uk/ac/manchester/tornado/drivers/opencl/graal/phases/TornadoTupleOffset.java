@@ -17,7 +17,6 @@ import org.graalvm.compiler.nodes.calc.LeftShiftNode;
 import org.graalvm.compiler.nodes.calc.MulNode;
 import org.graalvm.compiler.nodes.calc.SignExtendNode;
 import org.graalvm.compiler.nodes.memory.FloatingReadNode;
-import org.graalvm.compiler.nodes.memory.MemoryPhiNode;
 import org.graalvm.compiler.nodes.memory.WriteNode;
 import org.graalvm.compiler.phases.Phase;
 
@@ -518,39 +517,71 @@ public class TornadoTupleOffset extends Phase {
             }
 
             if (isTuple2) {
+                SignExtendNode sn = null;
+                LeftShiftNode sh = null;
+                for (Node in : add.inputs()) {
+                    if (in instanceof LeftShiftNode) {
+                        sh = (LeftShiftNode) in;
+                    }
+                }
+
+                for (Node in : sh.inputs()) {
+                    if (in instanceof SignExtendNode) {
+                        sn = (SignExtendNode) in;
+                    }
+                }
+
+                // StructuredGraph.ScheduleResult schedule = graph.getLastSchedule();
+                // NodeMap<Block> nm = schedule.getNodeToBlockMap();
+                // Block b = nm.get(sn);
+                // ArrayList<Node> lst = (ArrayList<Node>) schedule.getBlockToNodesMap().get(b);
+
                 Constant firstOffset;
                 ConstantNode firstConstOffset;
                 firstOffset = new RawConstant(fieldSizes.get(0));
-                firstConstOffset = new ConstantNode(firstOffset, StampFactory.forKind(JavaKind.Byte));
+                firstConstOffset = new ConstantNode(firstOffset, StampFactory.forKind(JavaKind.Long));
                 graph.addWithoutUnique(firstConstOffset);
+                // nm.setAndGrow(firstConstOffset, b);
+                // lst.add(firstConstOffset);
 
                 Constant secondOffset;
                 ConstantNode secondConstOffset;
-                secondOffset = new RawConstant(fieldSizes.get(1));
-                secondConstOffset = new ConstantNode(secondOffset, StampFactory.forKind(JavaKind.Byte));
+                secondOffset = new RawConstant(fieldSizes.get(0) + fieldSizes.get(1));
+                secondConstOffset = new ConstantNode(secondOffset, StampFactory.forKind(JavaKind.Long));
                 graph.addWithoutUnique(secondConstOffset);
+                // nm.setAndGrow(secondConstOffset, b);
+                // lst.add(secondConstOffset);
 
-                // first offset: oclAddress + i*sizeOfSecondField
-                MulNode multOffFirst = new MulNode(ph, secondConstOffset);
+                MulNode multOffFirst = new MulNode(sn, secondConstOffset);
                 graph.addWithoutUnique(multOffFirst);
+                add.replaceFirstInput(sh, multOffFirst);
+                // nm.setAndGrow(multOffFirst, b);
+                // lst.add(multOffFirst);
 
-                AddNode addOffFirst = new AddNode(multOffFirst, add);
-                graph.addWithoutUnique(addOffFirst);
+                SignExtendNode sn2 = null;
+                LeftShiftNode sh2 = null;
 
-                readAddressNodes.get(0).replaceFirstInput(add, addOffFirst);
-                // ----
+                for (Node in : add2.inputs()) {
+                    if (in instanceof LeftShiftNode) {
+                        sh2 = (LeftShiftNode) in;
+                    }
+                }
 
-                // second offset: oclAddress + (sizeOfFirstField + i*sizeOfFirstField)
-                MulNode mulOffSec = new MulNode(ph, firstConstOffset);
+                for (Node in : sh2.inputs()) {
+                    if (in instanceof SignExtendNode) {
+                        sn2 = (SignExtendNode) in;
+                    }
+                }
+
+                MulNode mulOffSec = new MulNode(sn2, secondConstOffset);
                 graph.addWithoutUnique(mulOffSec);
-
+                // nm.setAndGrow(mulOffSec, b);
+                // lst.add(mulOffSec);
                 AddNode addExtraOffSecond = new AddNode(firstConstOffset, mulOffSec);
                 graph.addWithoutUnique(addExtraOffSecond);
-
-                AddNode addOffSec = new AddNode(addExtraOffSecond, add2);
-                graph.addWithoutUnique(addOffSec);
-
-                readAddressNodes.get(1).replaceFirstInput(add2, addOffSec);
+                // nm.setAndGrow(addExtraOffSecond, b);
+                // lst.add(addExtraOffSecond);
+                add2.replaceFirstInput(sh2, addExtraOffSecond);
             } else if (isTuple3) {
                 // if tuple3
 
