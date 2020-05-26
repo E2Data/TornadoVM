@@ -568,6 +568,18 @@ public class TornadoVM extends TornadoLogger {
                         TornadoInternalError.guarantee(objectState.isValid(), MESSAGE_ERROR, objects.get(argIndex), objectState);
 
                         stack.push(objects.get(argIndex), objectState);
+                        System.out.print("------- Object " + objects.get(argIndex) + " access: ");
+                        if (accesses[i] == Access.WRITE) {
+                            System.out.println("WRITE");
+                        } else if (accesses[i] == Access.READ) {
+                            System.out.println("WRITE");
+                        } else if (accesses[i] == Access.READ_WRITE) {
+                            System.out.println("READ_WRITE");
+                        } else if (accesses[i] == Access.NONE) {
+                            System.out.println("NONE");
+                        } else if (accesses[i] == Access.UNKNOWN) {
+                            System.out.println("UNKNOWN");
+                        }
                         if (accesses[i] == Access.WRITE || accesses[i] == Access.READ_WRITE) {
                             globalState.setOwner(device);
                             objectState.setContents(true);
@@ -587,7 +599,12 @@ public class TornadoVM extends TornadoLogger {
 
                 // We attach the profiler
                 metadata.attachProfiler(timeProfiler);
-
+                byte[] b = stack.getBuffer().array();
+                System.out.println("-------- stack contents: ");
+                for (int i = 0; i < b.length; i++) {
+                    System.out.print(b[i] + " ");
+                }
+                System.out.println();
                 if (useDependencies) {
                     lastEvent = installedCode.launchWithDeps(stack, metadata, batchThreads, waitList);
                 } else {

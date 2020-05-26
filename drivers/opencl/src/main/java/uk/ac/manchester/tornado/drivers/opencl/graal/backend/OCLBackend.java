@@ -217,7 +217,7 @@ public class OCLBackend extends TornadoBackend<OCLProviders> implements FrameMap
         lookupCode.resolveEvent(parameters, meta, task);
 
         final long address = parameters.getLong(0);
-        // System.out.println("HEAP BASE ADDRESS: " + address);
+        System.out.println("---------- HEAP BASE ADDRESS: " + address);
         Tornado.info("Heap address @ 0x%x on %s ", address, deviceContext.getDevice().getDeviceName());
         return address;
     }
@@ -594,8 +594,9 @@ public class OCLBackend extends TornadoBackend<OCLProviders> implements FrameMap
         return new OCLFrameMapBuilder(newFrameMap(registerConfigNonNull), getCodeCache(), registerConfig);
     }
 
-    public LIRGenerationResult newLIRGenerationResult(CompilationIdentifier identifier, LIR lir, FrameMapBuilder frameMapBuilder, RegisterAllocationConfig registerAllocationConfig, StructuredGraph graph, Object stub) {
-        return new OCLLIRGenerationResult(identifier, lir, frameMapBuilder, registerAllocationConfig ,new CallingConvention(0, null, (AllocatableValue[]) null));
+    public LIRGenerationResult newLIRGenerationResult(CompilationIdentifier identifier, LIR lir, FrameMapBuilder frameMapBuilder, RegisterAllocationConfig registerAllocationConfig,
+            StructuredGraph graph, Object stub) {
+        return new OCLLIRGenerationResult(identifier, lir, frameMapBuilder, registerAllocationConfig, new CallingConvention(0, null, (AllocatableValue[]) null));
     }
 
     public LIRGeneratorTool newLIRGenerator(LIRGenerationResult lirGenResult) {

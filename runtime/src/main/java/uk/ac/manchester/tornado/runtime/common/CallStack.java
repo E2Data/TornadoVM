@@ -25,6 +25,8 @@
  */
 package uk.ac.manchester.tornado.runtime.common;
 
+import java.nio.ByteBuffer;
+
 public interface CallStack {
 
     void reset();
@@ -42,4 +44,7 @@ public interface CallStack {
     boolean isOnDevice();
 
     void dump();
+
+    ByteBuffer getBuffer();
+
 }

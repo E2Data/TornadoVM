@@ -35,6 +35,8 @@ import uk.ac.manchester.tornado.drivers.opencl.OCLDeviceContext;
 import uk.ac.manchester.tornado.runtime.common.CallStack;
 import uk.ac.manchester.tornado.runtime.common.DeviceObjectState;
 
+import java.nio.ByteBuffer;
+
 public class OCLCallStack extends OCLByteBuffer implements CallStack {
 
     public final static int RESERVED_SLOTS = 6;
@@ -138,6 +140,7 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
 
     @Override
     public void push(Object arg) {
+        System.out.println("----- push in stack: " + arg);
         if (arg == null) {
             if (DEBUG) {
                 debug("arg : (null)");
@@ -155,6 +158,7 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
 
     @Override
     public void push(Object arg, DeviceObjectState state) {
+        System.out.println("----- push in stack: " + arg + " deviceObjectState: " + state.toString());
         if (arg == null) {
             if (DEBUG) {
                 debug("arg : (null)");
@@ -170,5 +174,10 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
                 buffer.putLong(state.getAddress());
             }
         }
+    }
+
+    @Override
+    public ByteBuffer getBuffer() {
+        return buffer;
     }
 }
