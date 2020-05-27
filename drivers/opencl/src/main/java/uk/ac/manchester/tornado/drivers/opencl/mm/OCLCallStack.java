@@ -169,8 +169,11 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
                 debug("arg : [0x%x] type=%s, value=%s, address=0x%x (0x%x)", arg.hashCode(), arg.getClass().getSimpleName(), arg, state.getAddress(), state.getOffset());
             }
             if (deviceContext.useRelativeAddresses()) {
+                System.out.println("----- arg: " + arg + " relative address true, offset: " + state.getOffset());
                 buffer.putLong(state.getOffset());
             } else {
+                System.out.println(
+                        "----- arg: " + arg + " relative address false, address: " + state.getAddress() + " address hex: " + Long.toHexString(state.getAddress()) + " offset: " + state.getOffset());
                 buffer.putLong(state.getAddress());
             }
         }
