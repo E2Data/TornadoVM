@@ -14,12 +14,20 @@ public class FlinkData {
     private int numberOfResBytes;
     private int streamOutPos;
     private boolean reduction;
+    private boolean precompiled;
 
     public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, int streamOutPos, int numberOfResBytes) {
         this.firstByteDataSet = firstByteDataSet;
         this.secondByteDataSet = secondByteDataSet;
         this.byteResults = new byte[numberOfResBytes];
         this.streamOutPos = streamOutPos;
+    }
+
+    public FlinkData(byte[] firstByteDataSet, int streamOutPos, int numberOfResBytes, boolean precompiled) {
+        this.firstByteDataSet = firstByteDataSet;
+        this.byteResults = new byte[numberOfResBytes];
+        this.streamOutPos = streamOutPos;
+        this.precompiled = precompiled;
     }
 
     public FlinkData(byte[] firstByteDataSet, int streamOutPos, int numberOfResBytes) {
@@ -31,6 +39,12 @@ public class FlinkData {
     public FlinkData(byte[] firstByteDataSet, int numberOfResBytes) {
         this.firstByteDataSet = firstByteDataSet;
         this.byteResults = new byte[numberOfResBytes];
+    }
+
+    public FlinkData(byte[] firstByteDataSet, int numberOfResByte, boolean precompiled) {
+        this.firstByteDataSet = firstByteDataSet;
+        this.byteResults = new byte[numberOfResByte];
+        this.precompiled = precompiled;
     }
 
     public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, byte[] thirdByteDataSet, byte[] fourthByteDataSet) {
@@ -71,6 +85,10 @@ public class FlinkData {
 
     public void setReduction() {
         this.reduction = true;
+    }
+
+    public boolean isPrecompiled() {
+        return this.precompiled;
     }
 
 }

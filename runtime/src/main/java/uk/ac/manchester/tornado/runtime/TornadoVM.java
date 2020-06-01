@@ -324,8 +324,13 @@ public class TornadoVM extends TornadoLogger {
                             }
                         } else {
                             if (objectIndex == 1) {
-                                Object ob = finfo.getFirstByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                if (finfo.isPrecompiled()) {
+                                    Object ob = finfo.getByteResults();
+                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                } else {
+                                    Object ob = finfo.getFirstByteDataSet();
+                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
+                                }
                             } else if (objectIndex == 2) {
                                 Object ob = finfo.getSecondByteDataSet();
                                 if (ob != null) {
@@ -426,7 +431,15 @@ public class TornadoVM extends TornadoLogger {
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
 
-                lastEvent = device.streamOutBlocking(object, offset, objectState, waitList);
+                FlinkData finfo = graphContext.getFinfo();
+
+                if (finfo != null && !finfo.isReduction()) {
+                    Object ob = finfo.getByteResults();
+                    lastEvent = device.streamOutBlocking(ob, offset, objectState, waitList);
+                } else {
+                    lastEvent = device.streamOutBlocking(object, offset, objectState, waitList);
+                }
+
                 if (eventList != -1) {
                     eventsIndicies[eventList] = 0;
                 }
