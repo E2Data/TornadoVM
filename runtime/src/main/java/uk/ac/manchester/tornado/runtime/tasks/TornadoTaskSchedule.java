@@ -244,14 +244,48 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
         hlBuffer.put(TornadoGraphBitcodes.ARG_LIST.index());
         hlBuffer.putInt(args.length);
 
-        for (final Object arg : args) {
-            index = graphContext.insertVariable(arg);
-            if (arg.getClass().isPrimitive() || isBoxedPrimitiveClass(arg.getClass())) {
-                hlBuffer.put(TornadoGraphBitcodes.LOAD_PRIM.index());
-            } else {
-                hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
+        if (graphContext.getFinfo() != null) {
+            for (int i = 0; i < args.length; i++) {
+                Object arg = null;
+                if (i == 0) {
+                    if (graphContext.getFinfo().isPrecompiled()) {
+                        arg = graphContext.getFinfo().getFirstByteDataSet();
+                    } else {
+                        arg = args[i];
+                    }
+                } else if (i == 1) {
+                    if (graphContext.getFinfo().isPrecompiled()) {
+                        arg = graphContext.getFinfo().getByteResults();
+                    } else {
+                        arg = graphContext.getFinfo().getFirstByteDataSet();
+                    }
+                } else if (i == 2) {
+                    if (args.length == 3) {
+                        arg = graphContext.getFinfo().getByteResults();
+                    } else {
+                        arg = graphContext.getFinfo().getSecondByteDataSet();
+                    }
+                } else if (i == 3) {
+                    arg = graphContext.getFinfo().getByteResults();
+                }
+                index = graphContext.insertVariable(arg);
+                if (arg.getClass().isPrimitive() || isBoxedPrimitiveClass(arg.getClass())) {
+                    hlBuffer.put(TornadoGraphBitcodes.LOAD_PRIM.index());
+                } else {
+                    hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
+                }
+                hlBuffer.putInt(index);
             }
-            hlBuffer.putInt(index);
+        } else {
+            for (final Object arg : args) {
+                index = graphContext.insertVariable(arg);
+                if (arg.getClass().isPrimitive() || isBoxedPrimitiveClass(arg.getClass())) {
+                    hlBuffer.put(TornadoGraphBitcodes.LOAD_PRIM.index());
+                } else {
+                    hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
+                }
+                hlBuffer.putInt(index);
+            }
         }
 
         // launch code
