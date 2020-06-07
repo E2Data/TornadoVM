@@ -34,8 +34,8 @@
 #include "macros.h"
 #include "utils.h"
 
-#define PRINT_DATA_TIMES 1
-#define PRINT_DATA_SIZES 1
+#define PRINT_DATA_TIMES 0
+#define PRINT_DATA_SIZES 0
 
 #ifdef PRINT_DATA_TIMES
     #include "opencl_time_utils.h"

@@ -107,7 +107,7 @@ public class TornadoTupleOffset extends Phase {
                     orderedOCL.put(0, ocl);
                     fieldTypes.set(0, "used");
                 } // else {
-                in.replaceFirstInput(in.inputs().first(), ph);
+                  // in.replaceFirstInput(in.inputs().first(), ph);
 
                 /*
                  * for (Node adin : ad.inputs()) { if (!(adin instanceof ConstantNode)) {
@@ -517,48 +517,6 @@ public class TornadoTupleOffset extends Phase {
             }
 
             if (isTuple2) {
-                SignExtendNode sn = null;
-                LeftShiftNode sh = null;
-                for (Node in : add.inputs()) {
-                    if (in instanceof LeftShiftNode) {
-                        sh = (LeftShiftNode) in;
-                    }
-                }
-
-                for (Node in : sh.inputs()) {
-                    if (in instanceof SignExtendNode) {
-                        sn = (SignExtendNode) in;
-                    }
-                }
-
-                // StructuredGraph.ScheduleResult schedule = graph.getLastSchedule();
-                // NodeMap<Block> nm = schedule.getNodeToBlockMap();
-                // Block b = nm.get(sn);
-                // ArrayList<Node> lst = (ArrayList<Node>) schedule.getBlockToNodesMap().get(b);
-
-                Constant firstOffset;
-                ConstantNode firstConstOffset;
-                firstOffset = new RawConstant(fieldSizes.get(0));
-                firstConstOffset = new ConstantNode(firstOffset, StampFactory.forKind(JavaKind.Long));
-                graph.addWithoutUnique(firstConstOffset);
-                // nm.setAndGrow(firstConstOffset, b);
-                // lst.add(firstConstOffset);
-
-                Constant secondOffset;
-                ConstantNode secondConstOffset;
-                secondOffset = new RawConstant(fieldSizes.get(0) + fieldSizes.get(1));
-                secondConstOffset = new ConstantNode(secondOffset, StampFactory.forKind(JavaKind.Long));
-                graph.addWithoutUnique(secondConstOffset);
-                // nm.setAndGrow(secondConstOffset, b);
-                // lst.add(secondConstOffset);
-
-                MulNode multOffFirst = new MulNode(sn, secondConstOffset);
-                graph.addWithoutUnique(multOffFirst);
-                add.replaceFirstInput(sh, multOffFirst);
-                // nm.setAndGrow(multOffFirst, b);
-                // lst.add(multOffFirst);
-
-                SignExtendNode sn2 = null;
                 LeftShiftNode sh2 = null;
 
                 for (Node in : add2.inputs()) {
@@ -567,21 +525,21 @@ public class TornadoTupleOffset extends Phase {
                     }
                 }
 
+                ConstantNode c = null;
                 for (Node in : sh2.inputs()) {
-                    if (in instanceof SignExtendNode) {
-                        sn2 = (SignExtendNode) in;
+                    if (in instanceof ConstantNode) {
+                        // sn2 = (SignExtendNode) in;
+                        c = (ConstantNode) in;
                     }
                 }
 
-                MulNode mulOffSec = new MulNode(sn2, secondConstOffset);
-                graph.addWithoutUnique(mulOffSec);
-                // nm.setAndGrow(mulOffSec, b);
-                // lst.add(mulOffSec);
-                AddNode addExtraOffSecond = new AddNode(firstConstOffset, mulOffSec);
-                graph.addWithoutUnique(addExtraOffSecond);
-                // nm.setAndGrow(addExtraOffSecond, b);
-                // lst.add(addExtraOffSecond);
-                add2.replaceFirstInput(sh2, addExtraOffSecond);
+                Constant secondOffset;
+                ConstantNode secondConstOffset;
+                secondOffset = new RawConstant(3);
+                secondConstOffset = new ConstantNode(secondOffset, StampFactory.forKind(JavaKind.Int));
+                graph.addWithoutUnique(secondConstOffset);
+
+                sh2.replaceFirstInput(c, secondConstOffset);
             } else if (isTuple3) {
                 // if tuple3
 
