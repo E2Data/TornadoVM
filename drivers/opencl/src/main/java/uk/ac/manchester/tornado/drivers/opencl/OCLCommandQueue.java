@@ -391,7 +391,8 @@ public class OCLCommandQueue extends TornadoLogger {
     }
 
     public int enqueueWrite(long devicePtr, boolean blocking, long offset, long bytes, byte[] array, long hostOffset, int[] waitEvents) {
-        System.out.println("===== enqueueWrite byte array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueWrite byte array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         guarantee(array != null, "null array");
         int event = -1;
         try {
@@ -420,7 +421,8 @@ public class OCLCommandQueue extends TornadoLogger {
 
     public int enqueueWrite(long devicePtr, boolean blocking, long offset, long bytes, int[] array, long hostOffset, int[] waitEvents) {
         guarantee(array != null, "null array");
-        System.out.println("===== enqueueWrite int array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueWrite int array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         int event = -1;
         try {
             long eventID = writeArrayToDevice(id, array, hostOffset, blocking, offset, bytes, devicePtr, serialiseEvents(waitEvents) ? waitEventsBuffer : null);
@@ -473,7 +475,8 @@ public class OCLCommandQueue extends TornadoLogger {
 
     public int enqueueWrite(long devicePtr, boolean blocking, long offset, long bytes, double[] array, long hostOffset, int[] waitEvents) {
         guarantee(array != null, "null array");
-        System.out.println("===== enqueueWrite double array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueWrite double array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         int event = -1;
         try {
             long eventID = writeArrayToDevice(id, array, hostOffset, blocking, offset, bytes, devicePtr, serialiseEvents(waitEvents) ? waitEventsBuffer : null);
@@ -486,7 +489,8 @@ public class OCLCommandQueue extends TornadoLogger {
 
     public int enqueueRead(long devicePtr, boolean blocking, long offset, long bytes, byte[] array, long hostOffset, int[] waitEvents) {
         guarantee(array != null, "null array");
-        System.out.println("===== enqueueRead byte array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueRead byte array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         int event = -1;
         try {
             long eventID = readArrayFromDevice(id, array, hostOffset, blocking, offset, bytes, devicePtr, serialiseEvents(waitEvents) ? waitEventsBuffer : null);
@@ -514,7 +518,8 @@ public class OCLCommandQueue extends TornadoLogger {
 
     public int enqueueRead(long devicePtr, boolean blocking, long offset, long bytes, int[] array, long hostOffset, int[] waitEvents) {
         guarantee(array != null, "null array");
-        System.out.println("===== enqueueRead int array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueRead int array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         int event = -1;
         try {
             long eventID = readArrayFromDevice(id, array, hostOffset, blocking, offset, bytes, devicePtr, serialiseEvents(waitEvents) ? waitEventsBuffer : null);
@@ -570,7 +575,8 @@ public class OCLCommandQueue extends TornadoLogger {
 
     public int enqueueRead(long devicePtr, boolean blocking, long offset, long bytes, double[] array, long hostOffset, int[] waitEvents) {
         guarantee(array != null, "array is null");
-        System.out.println("===== enqueueRead double array, device pointer = " + devicePtr + " hex value: " + Long.toHexString(devicePtr));
+        // System.out.println("===== enqueueRead double array, device pointer = " +
+        // devicePtr + " hex value: " + Long.toHexString(devicePtr));
         int event = -1;
         try {
             long eventID = readArrayFromDevice(id, array, hostOffset, blocking, offset, bytes, devicePtr, serialiseEvents(waitEvents) ? waitEventsBuffer : null);

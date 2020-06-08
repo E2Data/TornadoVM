@@ -594,18 +594,14 @@ public class TornadoVM extends TornadoLogger {
                         TornadoInternalError.guarantee(objectState.isValid(), MESSAGE_ERROR, objects.get(argIndex), objectState);
 
                         stack.push(objects.get(argIndex), objectState);
-                        System.out.print("------- Object " + objects.get(argIndex) + " access: ");
-                        if (accesses[i] == Access.WRITE) {
-                            System.out.println("WRITE");
-                        } else if (accesses[i] == Access.READ) {
-                            System.out.println("WRITE");
-                        } else if (accesses[i] == Access.READ_WRITE) {
-                            System.out.println("READ_WRITE");
-                        } else if (accesses[i] == Access.NONE) {
-                            System.out.println("NONE");
-                        } else if (accesses[i] == Access.UNKNOWN) {
-                            System.out.println("UNKNOWN");
-                        }
+                        // System.out.print("------- Object " + objects.get(argIndex) + " access: ");
+                        /*
+                         * if (accesses[i] == Access.WRITE) { System.out.println("WRITE"); } else if
+                         * (accesses[i] == Access.READ) { System.out.println("WRITE"); } else if
+                         * (accesses[i] == Access.READ_WRITE) { System.out.println("READ_WRITE"); } else
+                         * if (accesses[i] == Access.NONE) { System.out.println("NONE"); } else if
+                         * (accesses[i] == Access.UNKNOWN) { System.out.println("UNKNOWN"); }
+                         */
                         if (accesses[i] == Access.WRITE || accesses[i] == Access.READ_WRITE) {
                             globalState.setOwner(device);
                             objectState.setContents(true);
