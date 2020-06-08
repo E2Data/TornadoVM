@@ -40,14 +40,17 @@ import uk.ac.manchester.tornado.api.common.Access;
 import uk.ac.manchester.tornado.api.common.Event;
 import uk.ac.manchester.tornado.api.common.SchedulableTask;
 import uk.ac.manchester.tornado.api.common.TornadoEvents;
+import uk.ac.manchester.tornado.api.exceptions.TornadoBailoutRuntimeException;
 import uk.ac.manchester.tornado.api.exceptions.TornadoFailureException;
 import uk.ac.manchester.tornado.api.exceptions.TornadoInternalError;
 import uk.ac.manchester.tornado.api.exceptions.TornadoRuntimeException;
 import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.api.profiler.ProfilerType;
 import uk.ac.manchester.tornado.api.profiler.TornadoProfiler;
+import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 import uk.ac.manchester.tornado.runtime.common.CallStack;
 import uk.ac.manchester.tornado.runtime.common.DeviceObjectState;
+import uk.ac.manchester.tornado.runtime.common.Tornado;
 import uk.ac.manchester.tornado.runtime.common.TornadoAcceleratorDevice;
 import uk.ac.manchester.tornado.runtime.common.TornadoInstalledCode;
 import uk.ac.manchester.tornado.runtime.common.TornadoLogger;
@@ -525,7 +528,7 @@ public class TornadoVM extends TornadoLogger {
                 task.setBatchThreads(batchThreads);
 
                 if (TornadoOptions.printBytecodes) {
-                    String verbose = String.format("vm: LAUNCH %s on %s, size=%d, offset=%d [event list=%d]", task.getName(), contexts.get(contextIndex), batchThreads, offset, eventList);
+                    String verbose = String.format("vm: LAUNCH %s on %s, size=%d, offset=%d [event list=%d]", task.getFullName(), contexts.get(contextIndex), batchThreads, offset, eventList);
                     bytecodesList.append(verbose + "\n");
                 }
 
@@ -541,8 +544,8 @@ public class TornadoVM extends TornadoLogger {
                             task.forceCompilation();
                         }
                         installedCodes[taskIndex] = device.installCode(task);
-                    } catch (Error | Exception e) {
-                        fatal("unable to compile task %s", task.getName());
+                    } catch (Exception e) {
+                        throw new TornadoBailoutRuntimeException("Unable to compile task " + task.getFullName() + "\n" + e.getStackTrace(), e);
                     }
                     // System.out.println("- installedCodes try-catch successful: " +
                     // installedCodes[taskIndex]);
@@ -563,7 +566,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoInstalledCode installedCode = installedCodes[taskIndex];
-                // System.out.println("- installedCode variable: " + installedCode);
+
+                if (installedCode == null) {
+                    // There was an error during compilation -> bailout
+                    throw new TornadoBailoutRuntimeException("Code generator Failed");
+                }
+
                 final Access[] accesses = task.getArgumentsAccess();
 
                 if (redeployOnDevice || !stack.isOnDevice()) {
@@ -617,23 +625,23 @@ public class TornadoVM extends TornadoLogger {
 
                 // We attach the profiler
                 metadata.attachProfiler(timeProfiler);
-                byte[] b = stack.getBuffer().array();
-                System.out.println("-------- stack contents: ");
-                for (int i = 0; i < b.length; i++) {
-                    System.out.print(b[i] + " ");
-                }
-                System.out.println();
-                if (useDependencies) {
-                    lastEvent = installedCode.launchWithDeps(stack, metadata, batchThreads, waitList);
-                } else {
-                    // System.out.println("- installedCode: " + installedCode);
-                    // System.out.println("- stack: " + stack);
-                    // System.out.println("- metadata: " + metadata);
-                    // System.out.println("- batchThreads: " + batchThreads);
-                    lastEvent = installedCode.launchWithoutDeps(stack, metadata, batchThreads);
-                }
-                if (eventList != -1) {
-                    eventsIndicies[eventList] = 0;
+
+                try {
+                    if (useDependencies) {
+                        lastEvent = installedCode.launchWithDependencies(stack, metadata, batchThreads, waitList);
+                    } else {
+                        lastEvent = installedCode.launchWithoutDependencies(stack, metadata, batchThreads);
+                    }
+                    if (eventList != -1) {
+                        eventsIndicies[eventList] = 0;
+                    }
+                } catch (Exception e) {
+                    String re = e.toString();
+                    if (Tornado.DEBUG) {
+                        e.printStackTrace();
+                    }
+                    throw new TornadoBailoutRuntimeException("Bailout from LAUNCH Bytecode: \nReason: " + re, e);
+
                 }
             } else if (op == TornadoVMBytecodes.ADD_DEP.value()) {
                 final int eventList = buffer.getInt();
@@ -717,7 +725,6 @@ public class TornadoVM extends TornadoLogger {
 
         if (TornadoOptions.printBytecodes) {
             System.out.println(bytecodesList.toString());
-            bytecodesList = null;
         }
 
         return barrier;

@@ -38,6 +38,7 @@ import uk.ac.manchester.tornado.api.common.Access;
 import uk.ac.manchester.tornado.api.common.Event;
 import uk.ac.manchester.tornado.api.common.SchedulableTask;
 import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
+import uk.ac.manchester.tornado.api.exceptions.TornadoBailoutRuntimeException;
 import uk.ac.manchester.tornado.api.exceptions.TornadoInternalError;
 import uk.ac.manchester.tornado.api.exceptions.TornadoMemoryException;
 import uk.ac.manchester.tornado.api.exceptions.TornadoOutOfMemoryException;
@@ -258,9 +259,8 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
             driver.fatal("unable to compile %s for device %s", task.getId(), getDeviceName());
             driver.fatal("exception occured when compiling %s", ((CompilableTask) task).getMethod().getName());
             driver.fatal("exception: %s", e.toString());
-            e.printStackTrace();
+            throw new TornadoBailoutRuntimeException("[Error During the Task Compilation] ", e);
         }
-        return null;
     }
 
     private TornadoInstalledCode compilePreBuiltTask(SchedulableTask task) {
@@ -292,7 +292,7 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
     }
 
     private String getTaskEntryName(SchedulableTask task) {
-        return task.getName().replace(" ", "").split("-")[1];
+        return task.getTaskName();
     }
 
     private TornadoInstalledCode loadPreCompiledBinaryForTask(SchedulableTask task) {
@@ -316,7 +316,7 @@ public class OCLTornadoDevice implements TornadoAcceleratorDevice {
             TaskMetaData metaData = (TaskMetaData) task.meta();
             return task.getId() + ".device=" + metaData.getDriverIndex() + ":" + metaData.getDeviceIndex();
         } else {
-            throw new RuntimeException("[ERROR] TaskMedata expected");
+            throw new RuntimeException("[ERROR] TaskMetadata expected");
         }
     }
 

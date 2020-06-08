@@ -246,7 +246,7 @@ public class TornadoExecutionContext {
         System.out.println("task table:");
         for (int i = 0; i < tasks.size(); i++) {
             final SchedulableTask task = tasks.get(i);
-            System.out.printf("[%d]: %s\n", i, task.getName());
+            System.out.printf("[%d]: %s\n", i, task.getFullName());
         }
     }
 
