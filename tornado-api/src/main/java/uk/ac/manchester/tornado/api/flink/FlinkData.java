@@ -1,5 +1,7 @@
 package uk.ac.manchester.tornado.api.flink;
 
+import java.util.ArrayList;
+
 /**
  * Class containing data information passed from Flink.
  */
@@ -15,6 +17,7 @@ public class FlinkData {
     private int streamOutPos;
     private boolean reduction;
     private boolean precompiled;
+    private boolean plainRed;
 
     public FlinkData(byte[] firstByteDataSet, byte[] secondByteDataSet, int streamOutPos, int numberOfResBytes) {
         this.firstByteDataSet = firstByteDataSet;
@@ -83,8 +86,12 @@ public class FlinkData {
         return this.reduction;
     }
 
-    public void setReduction() {
-        this.reduction = true;
+    public void plainReduction() {
+        this.plainRed = true;
+    }
+
+    public boolean isPlainReduction() {
+        return this.plainRed;
     }
 
     public boolean isPrecompiled() {

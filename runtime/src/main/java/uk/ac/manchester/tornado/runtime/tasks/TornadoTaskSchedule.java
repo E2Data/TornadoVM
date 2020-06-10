@@ -246,7 +246,7 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
         hlBuffer.put(TornadoGraphBitcodes.ARG_LIST.index());
         hlBuffer.putInt(args.length);
 
-        if (graphContext.getFinfo() != null) {
+        if (graphContext.getFinfo() != null && !graphContext.getFinfo().isPlainReduction()) {
             for (int i = 0; i < args.length; i++) {
                 Object arg = null;
                 if (i == 0) {
@@ -265,7 +265,11 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
                     if (args.length == 3) {
                         arg = graphContext.getFinfo().getByteResults();
                     } else {
-                        arg = graphContext.getFinfo().getSecondByteDataSet();
+                        if (graphContext.getFinfo().getSecondByteDataSet() == null) {
+                            arg = graphContext.getFinfo().getByteResults();
+                        } else {
+                            arg = graphContext.getFinfo().getSecondByteDataSet();
+                        }
                     }
                 } else if (i == 3) {
                     arg = graphContext.getFinfo().getByteResults();
