@@ -69,7 +69,7 @@ JNIEXPORT void JNICALL Java_uk_ac_manchester_tornado_drivers_opencl_OCLProgram_c
     // if pfn_notify callback is set, clBuildProgram will return immediately and compilation will be asynchronous
     // otherwise, it will behave synchronously
     cl_int status = clBuildProgram((cl_program) program_id, (cl_uint) numDevices, (cl_device_id*) devices, options, NULL, NULL);
-    printf("ERROR CODE: %d \n", status);
+
     OPENCL_SOFT_ERROR("clBuildProgarm", status,);
 
     (*env)->ReleasePrimitiveArrayCritical(env, array1, devices, 0);
