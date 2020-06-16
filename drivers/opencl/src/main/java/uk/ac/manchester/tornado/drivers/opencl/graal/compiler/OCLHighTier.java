@@ -50,6 +50,7 @@ import org.graalvm.compiler.virtual.phases.ea.PartialEscapePhase;
 
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoCollectionElimination;
 import uk.ac.manchester.tornado.api.TornadoDeviceContext;
+import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoNewArrayDevirtualizationReplacement;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoOpenCLIntrinsicsReplacements;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoParallelScheduler;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoPragmaUnroll;
@@ -96,6 +97,8 @@ public class OCLHighTier extends TornadoHighTier {
         appendPhase(new DeadCodeEliminationPhase(Optional));
 
         appendPhase(canonicalizer);
+
+        appendPhase(new TornadoNewArrayDevirtualizationReplacement());
 
         if (PartialEscapeAnalysis.getValue(options)) {
             appendPhase(new PartialEscapePhase(true, canonicalizer, options));
