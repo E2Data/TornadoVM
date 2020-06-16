@@ -57,6 +57,7 @@ import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task6;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task7;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task8;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task9;
+import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.api.flink.FlinkData;
 
 /**
@@ -427,6 +428,8 @@ public interface TornadoAPI {
     TornadoAPI batch(String batchSize);
 
     TornadoAPI flinkInfo(FlinkData finfo);
+
+    TornadoAPI flinkCompilerData(FlinkCompilerInfo fcomp);
 
     /**
      * Execute the task-schedule

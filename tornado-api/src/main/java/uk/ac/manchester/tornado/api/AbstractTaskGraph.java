@@ -47,6 +47,7 @@ import uk.ac.manchester.tornado.api.common.Access;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.common.SchedulableTask;
 import uk.ac.manchester.tornado.api.common.TaskPackage;
+import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.api.mm.TaskMetaDataInterface;
 import uk.ac.manchester.tornado.api.profiler.ProfileInterface;
@@ -124,4 +125,6 @@ public interface AbstractTaskGraph extends ProfileInterface {
     String getTaskScheduleName();
 
     void flinkInfoInner(FlinkData finfo);
+
+    void flinkCompInfoInner(FlinkCompilerInfo fcmop);
 }

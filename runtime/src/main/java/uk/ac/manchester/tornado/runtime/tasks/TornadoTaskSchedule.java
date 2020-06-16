@@ -79,10 +79,12 @@ import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task9;
 import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
 import uk.ac.manchester.tornado.api.exceptions.TornadoBailoutRuntimeException;
 import uk.ac.manchester.tornado.api.exceptions.TornadoRuntimeException;
+import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.api.profiler.ProfilerType;
 import uk.ac.manchester.tornado.api.profiler.TornadoProfiler;
 import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
+import uk.ac.manchester.tornado.runtime.FlinkCompilerInfoIntermediate;
 import uk.ac.manchester.tornado.runtime.TornadoVM;
 import uk.ac.manchester.tornado.runtime.analyzer.MetaReduceCodeAnalysis;
 import uk.ac.manchester.tornado.runtime.analyzer.ReduceCodeAnalysis;
@@ -191,6 +193,11 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
     @Override
     public void flinkInfoInner(FlinkData finfo) {
         graphContext.setFinfo(finfo);
+    }
+
+    @Override
+    public void flinkCompInfoInner(FlinkCompilerInfo fcomp) {
+        new FlinkCompilerInfoIntermediate(fcomp);
     }
 
     @Override

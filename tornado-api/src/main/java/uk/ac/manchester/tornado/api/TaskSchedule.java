@@ -57,6 +57,7 @@ import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task6;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task7;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task8;
 import uk.ac.manchester.tornado.api.common.TornadoFunctions.Task9;
+import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.api.flink.FlinkData;
 import uk.ac.manchester.tornado.api.profiler.ProfileInterface;
 import uk.ac.manchester.tornado.api.runtime.TornadoAPIProvider;
@@ -229,6 +230,12 @@ public class TaskSchedule implements TornadoAPI, ProfileInterface {
     @Override
     public TaskSchedule flinkInfo(FlinkData finfo) {
         taskScheduleImpl.flinkInfoInner(finfo);
+        return this;
+    }
+
+    @Override
+    public TaskSchedule flinkCompilerData(FlinkCompilerInfo fcomp) {
+        taskScheduleImpl.flinkCompInfoInner(fcomp);
         return this;
     }
 

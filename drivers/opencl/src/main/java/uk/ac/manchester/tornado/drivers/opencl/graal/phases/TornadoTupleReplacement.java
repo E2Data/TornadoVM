@@ -27,34 +27,57 @@ import org.graalvm.compiler.nodes.virtual.VirtualInstanceNode;
 import org.graalvm.compiler.phases.BasePhase;
 import org.graalvm.compiler.nodes.ConstantNode;
 
+import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.GlobalThreadIdNode;
+import uk.ac.manchester.tornado.runtime.FlinkCompilerInfoIntermediate;
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
-    public static boolean hasTuples;
-    public static int tupleSize;
-    public static int tupleSizeSecondDataSet;
-    public static ArrayList<Class> tupleFieldKind;
-    public static ArrayList<Class> tupleFieldKindSecondDataSet;
-    public static Class storeJavaKind;
-    public static int returnTupleSize;
-    public static boolean returnTuple;
-    public static ArrayList<Class> returnFieldKind;
-    public static boolean nestedTuples;
-    public static int nestedTupleField;
-    public static int sizeOfNestedTuple;
+    private boolean hasTuples;
+    private int tupleSize;
+    private int tupleSizeSecondDataSet;
+    private ArrayList<Class> tupleFieldKind;
+    private ArrayList<Class> tupleFieldKindSecondDataSet;
+    private Class storeJavaKind;
+    private int returnTupleSize;
+    private boolean returnTuple;
+    private ArrayList<Class> returnFieldKind;
+    private boolean nestedTuples;
+    private int nestedTupleField;
+    private int sizeOfNestedTuple;
+    private boolean broadcastedDataset;
+
+    void flinkSetCompInfo(FlinkCompilerInfo flinkCompilerInfo) {
+        this.hasTuples = flinkCompilerInfo.getHasTuples();
+        this.tupleSize = flinkCompilerInfo.getTupleSize();
+        this.tupleSizeSecondDataSet = flinkCompilerInfo.getTupleSizeSecondDataSet();
+        this.tupleFieldKind = flinkCompilerInfo.getTupleFieldKind();
+        this.tupleFieldKindSecondDataSet = flinkCompilerInfo.getTupleFieldKindSecondDataSet();
+        this.storeJavaKind = flinkCompilerInfo.getStoreJavaKind();
+        this.returnTupleSize = flinkCompilerInfo.getReturnTupleSize();
+        this.returnTuple = flinkCompilerInfo.getReturnTuple();
+        this.returnFieldKind = flinkCompilerInfo.getReturnFieldKind();
+        this.nestedTuples = flinkCompilerInfo.getNestedTuples();
+        this.nestedTupleField = flinkCompilerInfo.getNestedTupleField();
+        this.sizeOfNestedTuple = flinkCompilerInfo.getSizeOfNestedTuple();
+        this.broadcastedDataset = flinkCompilerInfo.getBroadcastedDataset();
+    }
 
     @Override
     protected void run(StructuredGraph graph, TornadoHighTierContext context) {
+        FlinkCompilerInfo fcomp = FlinkCompilerInfoIntermediate.getFlinkCompilerInfo();
+        if (fcomp != null) {
+            flinkSetCompInfo(fcomp);
+        }
+
         if (hasTuples) {
 
-            if (!TornadoCollectionElimination.broadcastedDataset) {
+            if (!broadcastedDataset) {
                 // at the moment we only handle cases where the input tuples are nested, for one
                 // for loop
                 // TODO: implement this for two loops also and refactor the code
