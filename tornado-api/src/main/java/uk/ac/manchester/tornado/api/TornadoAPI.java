@@ -494,4 +494,7 @@ public interface TornadoAPI {
 
     void waitOn();
 
+    TaskSchedule useDefaultThreadScheduler(boolean use);
+
+    void updateReference(Object oldRef, Object newRef);
 }

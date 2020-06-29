@@ -64,7 +64,7 @@ import uk.ac.manchester.tornado.api.runtime.TornadoAPIProvider;
 
 /**
  * Tornado Task Schedule API.
- * 
+ * <p>
  * </> Task-based parallel API to express code to be compiled and executed from
  * Java to OpenCL a t runtime. The Tornado runtime executes the generated OpenCL
  * program on any OpenCL-compatible device.
@@ -382,5 +382,16 @@ public class TaskSchedule implements TornadoAPI, ProfileInterface {
     @Override
     public String getProfileLog() {
         return taskScheduleImpl.getProfileLog();
+    }
+
+    @Override
+    public TaskSchedule useDefaultThreadScheduler(boolean use) {
+        taskScheduleImpl.useDefaultThreadScheduler(use);
+        return this;
+    }
+
+    @Override
+    public void updateReference(Object oldRef, Object newRef) {
+        taskScheduleImpl.updateReference(oldRef, newRef);
     }
 }

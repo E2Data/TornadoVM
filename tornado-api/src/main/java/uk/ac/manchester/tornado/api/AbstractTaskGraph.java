@@ -127,4 +127,9 @@ public interface AbstractTaskGraph extends ProfileInterface {
     void flinkInfoInner(FlinkData finfo);
 
     void flinkCompInfoInner(FlinkCompilerInfo fcmop);
+
+    void updateReference(Object oldRef, Object newRef);
+
+    void useDefaultThreadScheduler(boolean use);
+
 }
