@@ -1,5 +1,5 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable  
-__kernel void reduce(__global uchar *_heap_base, ulong _frame_base, __constant uchar *_constant_region, __local uchar *_local_region, __global uchar *_private_region)
+__kernel void reduce(__global uchar *_heap_base, ulong _frame_base, __constant uchar *_constant_region, __local uchar *_local_region)
 {
   ulong ul_11, ul_37, ul_1, ul_0, ul_3; 
   bool z_23, z_31; 
@@ -11,16 +11,16 @@ __kernel void reduce(__global uchar *_heap_base, ulong _frame_base, __constant u
   __global ulong *_frame = (__global ulong *) &_heap_base[_frame_base];
 
   // INPUT
-  ul_0  =  (ulong) _frame[6];              // i1
-  ul_1  =  (ulong) _frame[7];              // i2A
-  ulong ul_4  =  (ulong) _frame[8];        // i2B
-  ulong ul_5  =  (ulong) _frame[9];        // i3
+  ul_0  =  (ulong) _frame[0];              // i1
+  ul_1  =  (ulong) _frame[1];              // i2A
+  ulong ul_4  =  (ulong) _frame[2];        // i2B
+  ulong ul_5  =  (ulong) _frame[3];        // i3
 
   // OUTPUT
-  ulong ul_6  =  (ulong) _frame[10];        // o1
-  ulong ul_7  =  (ulong) _frame[11];        // o2A   (reduce)
-  ulong ul_8  =  (ulong) _frame[12];        // o2B   (reduce)
-  ulong ul_9  =  (ulong) _frame[13];        // o3    (reduce)
+  ulong ul_6  =  (ulong) _frame[4];        // o1
+  ulong ul_7  =  (ulong) _frame[5];        // o2A   (reduce)
+  ulong ul_8  =  (ulong) _frame[6];        // o2B   (reduce)
+  ulong ul_9  =  (ulong) _frame[7];        // o3    (reduce)
 
   __local double ul_20[256];    // local memory for variable 1  (o2A)
   __local double ul_21[256];    // local memory for variable 2  (o2B)

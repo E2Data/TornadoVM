@@ -17,16 +17,14 @@
  */
 package uk.ac.manchester.tornado.examples.prebuilt;
 
-import uk.ac.manchester.tornado.api.TaskSchedule;
-import uk.ac.manchester.tornado.api.annotations.Parallel;
-import uk.ac.manchester.tornado.api.annotations.Reduce;
-import uk.ac.manchester.tornado.api.common.Access;
-import uk.ac.manchester.tornado.api.common.TornadoDevice;
-import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
-
 import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
+
+import uk.ac.manchester.tornado.api.TaskSchedule;
+import uk.ac.manchester.tornado.api.common.Access;
+import uk.ac.manchester.tornado.api.common.TornadoDevice;
+import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 
 public class ReducePrebuilt4 {
 
@@ -60,7 +58,7 @@ public class ReducePrebuilt4 {
                         "reduce", //
                         "./pre-compiled/prebuilt-reduceFlink.cl", //
                         new Object[] { i1, i2A, i2B, i3, o1, o2A, o2B, o3 }, //
-                        new Access[] { Access.READ, Access.READ, Access.READ, Access.READ, Access.WRITE, Access.WRITE, Access.WRITE, Access.WRITE, }, //
+                        new Access[] { Access.READ, Access.READ, Access.READ, Access.READ, Access.WRITE, Access.WRITE, Access.WRITE, Access.WRITE }, //
                         defaultDevice, //
                         new int[] { SIZE }) //
                 .streamOut(o1, o2A, o2B, o3) //
