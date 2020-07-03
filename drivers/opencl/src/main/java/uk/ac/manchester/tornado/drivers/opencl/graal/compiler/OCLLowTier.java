@@ -74,7 +74,10 @@ public class OCLLowTier extends TornadoLowTier {
         appendPhase(new TornadoLoopCanonicalization());
 
         appendPhase(new TornadoTupleOffset());
-        appendPhase(new OCLFMAPhase());
+
+        if (TornadoOptions.ENABLE_FMA) {
+            appendPhase(new OCLFMAPhase());
+        }
 
         appendPhase(new SchedulePhase(SchedulePhase.SchedulingStrategy.LATEST_OUT_OF_LOOPS));
 
