@@ -322,35 +322,18 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
         final Object[] args = task.getArguments();
         hlBuffer.put(TornadoGraphBitcodes.ARG_LIST.index());
         hlBuffer.putInt(args.length);
-
-        if (executionContext.getFinfo() != null && !executionContext.getFinfo().isPlainReduction()) {
-            for (int i = 0; i < args.length; i++) {
-                Object arg = null;
-                if (i == 0) {
-                    if (executionContext.getFinfo().isPrecompiled()) {
-                        arg = executionContext.getFinfo().getFirstByteDataSet();
-                    } else {
-                        arg = args[i];
-                    }
-                } else if (i == 1) {
-                    if (executionContext.getFinfo().isPrecompiled()) {
-                        arg = executionContext.getFinfo().getByteResults();
-                    } else {
-                        arg = executionContext.getFinfo().getFirstByteDataSet();
-                    }
-                } else if (i == 2) {
-                    if (args.length == 3) {
-                        arg = executionContext.getFinfo().getByteResults();
-                    } else {
-                        if (executionContext.getFinfo().getSecondByteDataSet() == null) {
-                            arg = executionContext.getFinfo().getByteResults();
-                        } else {
-                            arg = executionContext.getFinfo().getSecondByteDataSet();
-                        }
-                    }
-                } else if (i == 3) {
-                    arg = executionContext.getFinfo().getByteResults();
-                }
+        FlinkData fData = executionContext.getFinfo();
+        if (fData != null && !fData.isPlainReduction()) {
+            // write udf
+            final ArrayList<Object> flinkArgs = fData.getByteDataSets();
+            if (!fData.isPrecompiled()) {
+                Object flinkFunction = args[0];
+                index = executionContext.insertVariable(flinkFunction);
+                hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
+                hlBuffer.putInt(index);
+            }
+            // write flink data
+            for (final Object arg : flinkArgs) {
                 index = executionContext.insertVariable(arg);
                 if (arg.getClass().isPrimitive() || isBoxedPrimitiveClass(arg.getClass())) {
                     hlBuffer.put(TornadoGraphBitcodes.LOAD_PRIM.index());
@@ -358,6 +341,21 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
                     hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
                 }
                 hlBuffer.putInt(index);
+            }
+
+            if (fData.isPrecompiled() && args.length > flinkArgs.size()) {
+                int i = args.length - flinkArgs.size();
+                while (i < args.length) {
+                    Object arg = args[i];
+                    index = executionContext.insertVariable(arg);
+                    if (arg.getClass().isPrimitive() || isBoxedPrimitiveClass(arg.getClass())) {
+                        hlBuffer.put(TornadoGraphBitcodes.LOAD_PRIM.index());
+                    } else {
+                        hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
+                    }
+                    hlBuffer.putInt(index);
+                    i++;
+                }
             }
         } else {
             for (final Object arg : args) {

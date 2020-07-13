@@ -91,11 +91,7 @@ public class TornadoExecutionContext {
     // public static int streamOutPos;
 
     public int insertVariable(Object var) {
-        int index = -1;
-        if (var == null) {
-            index = this.finfo.getStreamOutPos(); // streamOutPos;
-            return index;
-        }
+        int index;
         if (var.getClass().isPrimitive() || RuntimeUtilities.isBoxedPrimitiveClass(var.getClass())) {
             index = constants.indexOf(var);
             if (index == -1) {

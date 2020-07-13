@@ -225,7 +225,6 @@ public class TornadoVM extends TornadoLogger {
         if (TornadoOptions.printBytecodes) {
             tornadoVMBytecodeList = new StringBuilder();
         }
-
         while (buffer.hasRemaining()) {
             final byte op = buffer.get();
             if (op == TornadoVMBytecodes.ALLOCATE.value()) {
@@ -238,7 +237,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoAcceleratorDevice device = contexts.get(contextIndex);
-                final Object object = objects.get(objectIndex);
+                final Object object;
+                if (graphContext.getFinfo() != null && graphContext.getFinfo().isPlainReduction()) {
+                    object = graphContext.getFinfo().getByteDataSets().get(objectIndex);
+                } else {
+                    object = objects.get(objectIndex);
+                }
 
                 if (TornadoOptions.printBytecodes) {
                     String verbose = String.format("vm: ALLOCATE [0x%x] %s on %s, size=%d", object.hashCode(), object, device, sizeBatch);
@@ -246,13 +250,8 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
-                FlinkData finfo = graphContext.getFinfo();
-                if (finfo != null && !finfo.isReduction()) {
-                    Object ob = finfo.getByteResults();
-                    lastEvent = device.ensureAllocated(ob, sizeBatch, objectState);
-                } else {
-                    lastEvent = device.ensureAllocated(object, sizeBatch, objectState);
-                }
+
+                lastEvent = device.ensureAllocated(object, sizeBatch, objectState);
 
             } else if (op == TornadoVMBytecodes.COPY_IN.value()) {
                 final int objectIndex = buffer.getInt();
@@ -268,9 +267,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoAcceleratorDevice device = contexts.get(contextIndex);
-                final Object object = objects.get(objectIndex);
-
-                FlinkData finfo = graphContext.getFinfo();
+                final Object object;
+                if (graphContext.getFinfo() != null && graphContext.getFinfo().isPlainReduction()) {
+                    object = graphContext.getFinfo().getByteDataSets().get(objectIndex);
+                } else {
+                    object = objects.get(objectIndex);
+                }
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
 
@@ -284,88 +286,9 @@ public class TornadoVM extends TornadoLogger {
                 if (sizeBatch > 0) {
                     // We need to stream-in when using batches, because the
                     // whole data is not copied yet.
-                    if (finfo != null) {
-                        if (finfo.isReduction()) {
-                            if (objectIndex == 0) {
-                                Object ob = finfo.getFirstByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 1) {
-                                Object ob = finfo.getSecondByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 2) {
-                                Object ob = finfo.getThirdByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 3) {
-                                Object ob = finfo.getFourthByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else {
-                                allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
-                            }
-                        } else {
-                            if (objectIndex == 1) {
-                                Object ob = finfo.getFirstByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else if (objectIndex == 2) {
-                                Object ob = finfo.getSecondByteDataSet();
-                                allEvents = device.streamIn(ob, sizeBatch, offset, objectState, waitList);
-                            } else {
-                                allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
-                            }
-                        }
-                    } else {
-                        allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
-                    }
+                    allEvents = device.streamIn(object, sizeBatch, offset, objectState, waitList);
                 } else {
-                    if (finfo != null) {
-                        if (finfo.isReduction()) {
-                            if (objectIndex == 0) {
-                                Object ob = finfo.getFirstByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 1) {
-                                Object ob = finfo.getSecondByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 2) {
-                                Object ob = finfo.getThirdByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else if (objectIndex == 3) {
-                                Object ob = finfo.getFourthByteDataSet();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else {
-                                allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
-                            }
-                        } else {
-                            if (objectIndex == 1) {
-                                if (finfo.isPrecompiled()) {
-                                    Object ob = finfo.getByteResults();
-                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                                } else {
-                                    Object ob = finfo.getFirstByteDataSet();
-                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                                }
-                            } else if (objectIndex == 2) {
-                                Object ob = finfo.getSecondByteDataSet();
-                                if (ob != null) {
-                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                                } else {
-                                    ob = finfo.getByteResults();
-                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                                }
-                            } else if (objectIndex == 3) {
-                                // streamout array
-                                Object ob = finfo.getByteResults();
-                                allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                            } else {
-                                if (object.getClass().toString().contains("Tuple")) {
-                                    Object ob = finfo.getFirstByteDataSet();
-                                    allEvents = device.ensurePresent(ob, objectState, waitList, sizeBatch, offset);
-                                } else {
-                                    allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
-                                }
-                            }
-                        }
-                    } else {
-                        allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
-                    }
+                    allEvents = device.ensurePresent(object, objectState, waitList, sizeBatch, offset);
                 }
                 if (eventList != -1) {
                     eventsIndicies[eventList] = 0;
@@ -395,7 +318,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoAcceleratorDevice device = contexts.get(contextIndex);
-                final Object object = objects.get(objectIndex);
+                final Object object;
+                if (graphContext.getFinfo() != null && graphContext.getFinfo().isPlainReduction()) {
+                    object = graphContext.getFinfo().getByteDataSets().get(objectIndex);
+                } else {
+                    object = objects.get(objectIndex);
+                }
 
                 if (TornadoOptions.printBytecodes) {
                     String verbose = String.format("vm: STREAM_IN [0x%x] %s on %s, size=%d, offset=%d [event list=%d]", object.hashCode(), object, device, sizeBatch, offset, eventList);
@@ -433,7 +361,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoAcceleratorDevice device = contexts.get(contextIndex);
-                final Object object = objects.get(objectIndex);
+                final Object object;
+                if (graphContext.getFinfo() != null && graphContext.getFinfo().isPlainReduction()) {
+                    object = graphContext.getFinfo().getByteDataSets().get(objectIndex);
+                } else {
+                    object = objects.get(objectIndex);
+                }
 
                 if (TornadoOptions.printBytecodes) {
                     String verbose = String.format("vm: STREAM_OUT [0x%x] %s on %s, size=%d, offset=%d [event list=%d]", object.hashCode(), object, device, sizeBatch, offset, eventList);
@@ -442,14 +375,7 @@ public class TornadoVM extends TornadoLogger {
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
 
-                FlinkData finfo = graphContext.getFinfo();
-
-                if (finfo != null && !finfo.isReduction()) {
-                    Object ob = finfo.getByteResults();
-                    lastEvent = device.streamOutBlocking(ob, offset, objectState, waitList);
-                } else {
-                    lastEvent = device.streamOutBlocking(object, offset, objectState, waitList);
-                }
+                lastEvent = device.streamOutBlocking(object, offset, objectState, waitList);
 
                 if (eventList != -1) {
                     eventsIndicies[eventList] = 0;
@@ -477,7 +403,12 @@ public class TornadoVM extends TornadoLogger {
                 }
 
                 final TornadoAcceleratorDevice device = contexts.get(contextIndex);
-                final Object object = objects.get(objectIndex);
+                final Object object;
+                if (graphContext.getFinfo() != null && graphContext.getFinfo().isPlainReduction()) {
+                    object = graphContext.getFinfo().getByteDataSets().get(objectIndex);
+                } else {
+                    object = objects.get(objectIndex);
+                }
 
                 if (TornadoOptions.printBytecodes) {
                     String verbose = String.format("vm: STREAM_OUT_BLOCKING [0x%x] %s on %s, size=%d, offset=%d [event list=%d]", object.hashCode(), object, device, sizeBatch, offset, eventList);
@@ -486,16 +417,9 @@ public class TornadoVM extends TornadoLogger {
 
                 final DeviceObjectState objectState = resolveObjectState(objectIndex, contextIndex);
 
-                FlinkData finfo = graphContext.getFinfo();
-
                 final int tornadoEventID;
 
-                if (finfo != null && !finfo.isReduction()) {
-                    Object ob = finfo.getByteResults();
-                    tornadoEventID = device.streamOutBlocking(ob, offset, objectState, waitList);
-                } else {
-                    tornadoEventID = device.streamOutBlocking(object, offset, objectState, waitList);
-                }
+                tornadoEventID = device.streamOutBlocking(object, offset, objectState, waitList);
 
                 if (TornadoOptions.isProfilerEnabled() && tornadoEventID != -1) {
                     Event event = device.resolveEvent(tornadoEventID);
