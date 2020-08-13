@@ -127,9 +127,11 @@ public class OCLHighTier extends TornadoHighTier {
         appendPhase(new DeadCodeEliminationPhase(Optional));
 
         appendPhase(new SchedulePhase(SchedulePhase.SchedulingStrategy.EARLIEST));
+
         appendPhase(new TornadoCollectionElimination());
         appendPhase(new TornadoTupleReplacement());
         appendPhase(new TornadoUdfReferenceRemoval());
+
         appendPhase(new LoweringPhase(canonicalizer, LoweringTool.StandardLoweringStage.HIGH_TIER));
 
         // After the first Lowering, Tornado replaces reductions with snippets
