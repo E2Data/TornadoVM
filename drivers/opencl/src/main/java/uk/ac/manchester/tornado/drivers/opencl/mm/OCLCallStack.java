@@ -31,6 +31,8 @@ import static uk.ac.manchester.tornado.runtime.common.RuntimeUtilities.isBoxedPr
 import static uk.ac.manchester.tornado.runtime.common.Tornado.DEBUG;
 import static uk.ac.manchester.tornado.runtime.common.Tornado.debug;
 
+import java.util.HashMap;
+
 import uk.ac.manchester.tornado.drivers.opencl.OCLDeviceContext;
 import uk.ac.manchester.tornado.runtime.common.CallStack;
 import uk.ac.manchester.tornado.runtime.common.DeviceObjectState;
@@ -40,6 +42,7 @@ import java.nio.ByteBuffer;
 public class OCLCallStack extends OCLByteBuffer implements CallStack {
 
     public final static int RETURN_VALUE_INDEX = 0;
+    public static final int RESERVED_SLOTS = 3;
 
     private final int numArgs;
     private OCLDeviceContext deviceContext;
@@ -47,14 +50,11 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
     private boolean onDevice;
 
     OCLCallStack(long offset, int numArgs, OCLDeviceContext device) {
-        super(device, offset, numArgs << 3);
+        super(device, offset, (numArgs + RESERVED_SLOTS) << 3);
         this.numArgs = numArgs;
         this.deviceContext = device;
 
-        // clear the buffer and set the mark position
         buffer.clear();
-        buffer.mark();
-
         onDevice = false;
     }
 
@@ -91,6 +91,7 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
 
     @Override
     public void reset() {
+        buffer.mark();
         buffer.reset();
         onDevice = false;
     }
@@ -120,6 +121,18 @@ public class OCLCallStack extends OCLByteBuffer implements CallStack {
     @Override
     public void dump() {
         super.dump(8);
+    }
+
+    @Override
+    public void setHeader(HashMap<Integer, Integer> map) {
+        buffer.clear();
+        for (int i = 0; i < RESERVED_SLOTS; i++) {
+            if (map.containsKey(i)) {
+                buffer.putLong(map.get(i));
+            } else {
+                buffer.putLong(0);
+            }
+        }
     }
 
     @Override

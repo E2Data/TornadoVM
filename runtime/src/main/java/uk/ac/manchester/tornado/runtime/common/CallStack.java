@@ -1,5 +1,5 @@
 /*
- * This file is part of Tornado: A heterogeneous programming framework: 
+ * This file is part of Tornado: A heterogeneous programming framework:
  * https://github.com/beehive-lab/tornadovm
  *
  * Copyright (c) 2013-2020, APT Group, Department of Computer Science,
@@ -25,7 +25,7 @@
  */
 package uk.ac.manchester.tornado.runtime.common;
 
-import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 public interface CallStack {
 
@@ -45,6 +45,6 @@ public interface CallStack {
 
     void dump();
 
-    ByteBuffer getBuffer();
+    void setHeader(HashMap<Integer, Integer> map);
 
 }
