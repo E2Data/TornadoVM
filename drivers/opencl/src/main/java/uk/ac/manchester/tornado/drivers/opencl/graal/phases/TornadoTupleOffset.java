@@ -4,6 +4,7 @@ import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.RawConstant;
 
+import org.apache.commons.math3.analysis.function.Add;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.ConstantNode;
@@ -154,6 +155,24 @@ public class TornadoTupleOffset extends Phase {
         }
     }
 
+    public static AddNode getAddInput(HashMap<Integer, OCLAddressNode> readAddressNodes, int pos) {
+        AddNode adNode = null;
+        OCLAddressNode ocl = readAddressNodes.get(pos);
+        for (Node in : ocl.inputs()) {
+            if (in instanceof AddNode) {
+                adNode = (AddNode) in;
+                break;
+            }
+        }
+
+        if (adNode == null) {
+            System.out.println("ERROR: CASE NOT TAKEN INTO ACCOUNT");
+            return null;
+        }
+
+        return adNode;
+    }
+
     @Override
     protected void run(StructuredGraph graph) {
 
@@ -210,25 +229,14 @@ public class TornadoTupleOffset extends Phase {
                     return;
                 }
                 int tupleSize = fieldSizes.size();
+                HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
                 if (tupleSize == 2) {
-                    HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
                     // CASE: Tuple2
                     if (tupleArrayFieldNo == 0) {
                         // if the first field of the Tuple2 is an array
                         // ----- Access Field 0
-                        AddNode adNode0 = null;
-                        OCLAddressNode ocl0 = readAddressNodes.get(0);
-                        for (Node in : ocl0.inputs()) {
-                            if (in instanceof AddNode) {
-                                adNode0 = (AddNode) in;
-                                break;
-                            }
-                        }
-
-                        if (adNode0 == null) {
-                            System.out.println("ERROR: CASE NOT TAKEN INTO ACCOUNT");
-                            return;
-                        }
+                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
 
                         Node adInput0 = null;
                         for (Node adin : adNode0.inputs()) {
@@ -276,19 +284,7 @@ public class TornadoTupleOffset extends Phase {
                         adNode0.replaceFirstInput(adInput0, addOffset0);
 
                         // ----- Access Field 1
-                        AddNode adNode1 = null;
-                        OCLAddressNode ocl1 = readAddressNodes.get(1);
-                        for (Node in : ocl1.inputs()) {
-                            if (in instanceof AddNode) {
-                                adNode1 = (AddNode) in;
-                                break;
-                            }
-                        }
-
-                        if (adNode1 == null) {
-                            System.out.println("ERROR: CASE NOT TAKEN INTO ACCOUNT");
-                            return;
-                        }
+                        AddNode adNode1 = getAddInput(readAddressNodes, 1);
 
                         Node adInput1 = null;
                         for (Node adin : adNode1.inputs()) {
@@ -324,19 +320,7 @@ public class TornadoTupleOffset extends Phase {
                     } else if (tupleArrayFieldNo == 1) {
                         // if the second field of the Tuple2 is an array
                         // ----- Access Field 0
-                        AddNode adNode0 = null;
-                        OCLAddressNode ocl0 = readAddressNodes.get(0);
-                        for (Node in : ocl0.inputs()) {
-                            if (in instanceof AddNode) {
-                                adNode0 = (AddNode) in;
-                                break;
-                            }
-                        }
-
-                        if (adNode0 == null) {
-                            System.out.println("ERROR: CASE NOT TAKEN INTO ACCOUNT");
-                            return;
-                        }
+                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
 
                         Node adInput0 = null;
                         for (Node adin : adNode0.inputs()) {
@@ -367,19 +351,7 @@ public class TornadoTupleOffset extends Phase {
                         adNode0.replaceFirstInput(adInput0, multOffset0);
 
                         // ----- Access Field 1
-                        AddNode adNode1 = null;
-                        OCLAddressNode ocl1 = readAddressNodes.get(1);
-                        for (Node in : ocl1.inputs()) {
-                            if (in instanceof AddNode) {
-                                adNode1 = (AddNode) in;
-                                break;
-                            }
-                        }
-
-                        if (adNode1 == null) {
-                            System.out.println("ERROR: CASE NOT TAKEN INTO ACCOUNT");
-                            return;
-                        }
+                        AddNode adNode1 = getAddInput(readAddressNodes, 1);
 
                         Node adInput1 = null;
                         for (Node adin : adNode1.inputs()) {
@@ -398,7 +370,7 @@ public class TornadoTupleOffset extends Phase {
                             // padding
                             arrayFieldSizeConst = new RawConstant(8);
                         } else {
-                            arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
+                            arrayFieldSizeConst = new RawConstant(fieldSizes.get(1));
                         }
                         ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
                         graph.addWithoutUnique(arrayFieldSize);
@@ -442,6 +414,374 @@ public class TornadoTupleOffset extends Phase {
                     }
                 } else if (tupleSize == 3) {
                     // CASE: Tuple3
+                    if (tupleArrayFieldNo == 0) {
+                        // if the first field of the Tuple3 is an array
+                        // ----- Access Field 0
+                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+
+                        Node adInput0 = null;
+                        for (Node adin : adNode0.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput0 = adin;
+                            }
+                        }
+
+                        if (adInput0 != null) {
+                            identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        Constant arrayFieldSizeConst;
+                        if (differentTypes) {
+                            // padding
+                            arrayFieldSizeConst = new RawConstant(8);
+                        } else {
+                            arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
+                        }
+                        ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayFieldSize);
+
+                        Constant arrayIndexConst = new RawConstant(arrayFieldIndex);
+                        ConstantNode arrayIndex = new ConstantNode(arrayIndexConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayIndex);
+
+                        MulNode m = new MulNode(arrayFieldSize, arrayIndex);
+                        graph.addWithoutUnique(m);
+
+                        int sizeOfFields;
+
+                        if (differentTypes) {
+                            sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                        } else {
+                            sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                        }
+
+                        Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                        ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fieldsSize);
+
+                        MulNode m2 = new MulNode(signExt, fieldsSize);
+                        graph.addWithoutUnique(m2);
+
+                        AddNode addOffset0 = new AddNode(m, m2);
+                        graph.addWithoutUnique(addOffset0);
+
+                        adNode0.replaceFirstInput(adInput0, addOffset0);
+
+                        // ------ Access Field 1
+                        AddNode adNode1 = getAddInput(readAddressNodes, 1);
+
+                        Node adInput1 = null;
+                        for (Node adin : adNode1.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput1 = adin;
+                            }
+                        }
+
+                        if (adInput1 != null) {
+                            identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        Constant field0SizeConst = new RawConstant(arrayFieldTotalBytes);
+                        ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(field0Size);
+
+                        AddNode addOffset1 = new AddNode(m2, field0Size);
+                        graph.addWithoutUnique(addOffset1);
+
+                        adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                        // ----- Access Field 2
+                        AddNode adNode2 = getAddInput(readAddressNodes, 2);
+
+                        Node adInput2 = null;
+                        for (Node adin : adNode2.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput2 = adin;
+                            }
+                        }
+
+                        if (adInput2 != null) {
+                            identifyNodesToBeDeleted(adInput2, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        int sizeOfField0Field1;
+                        // new nodes
+                        if (differentTypes) {
+                            sizeOfField0Field1 = arrayFieldTotalBytes + 8;
+                        } else {
+                            sizeOfField0Field1 = arrayFieldTotalBytes + fieldSizes.get(1);
+                        }
+
+                        Constant fields0plus1SizeConst = new RawConstant(sizeOfField0Field1);
+                        ConstantNode fields01Size = new ConstantNode(fields0plus1SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fields01Size);
+
+                        AddNode addOffset2 = new AddNode(fields01Size, m2);
+                        graph.addWithoutUnique(addOffset2);
+                        adNode2.replaceFirstInput(adInput2, addOffset2);
+
+                        for (Node n : nodesToBeDeleted.keySet()) {
+                            Integer[] count = nodesToBeDeleted.get(n);
+                            // if the usages are as many as the occurrences delete
+                            if (count[0] == count[1]) {
+                                n.safeDelete();
+                            }
+                        }
+
+                        return;
+
+                    } else if (tupleArrayFieldNo == 1) {
+                        // if the second field of the Tuple3 is an array
+                        // ----- Access Field 0
+                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+
+                        Node adInput0 = null;
+                        for (Node adin : adNode0.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput0 = adin;
+                            }
+                        }
+
+                        if (adInput0 != null) {
+                            identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        int sizeOfFields;
+
+                        if (differentTypes) {
+                            sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                        } else {
+                            sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(0) + fieldSizes.get(2);
+                        }
+
+                        Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                        ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fieldsSize);
+
+                        MulNode multOffset0 = new MulNode(signExt, fieldsSize);
+                        graph.addWithoutUnique(multOffset0);
+
+                        adNode0.replaceFirstInput(adInput0, multOffset0);
+
+                        // ----- Access Field 1
+                        AddNode adNode1 = getAddInput(readAddressNodes, 1);
+
+                        Node adInput1 = null;
+                        for (Node adin : adNode1.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput1 = adin;
+                            }
+                        }
+
+                        if (adInput1 != null) {
+                            identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        Constant field0SizeConst;
+                        if (differentTypes) {
+                            field0SizeConst = new RawConstant(8);
+                        } else {
+                            field0SizeConst = new RawConstant(fieldSizes.get(0));
+                        }
+                        ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(field0Size);
+
+                        Constant arrayFieldSizeConst;
+                        if (differentTypes) {
+                            // padding
+                            arrayFieldSizeConst = new RawConstant(8);
+                        } else {
+                            arrayFieldSizeConst = new RawConstant(fieldSizes.get(1));
+                        }
+                        ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayFieldSize);
+
+                        Constant arrayIndexConst = new RawConstant(arrayFieldIndex);
+                        ConstantNode arrayIndex = new ConstantNode(arrayIndexConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayIndex);
+
+                        MulNode m = new MulNode(arrayFieldSize, arrayIndex);
+                        graph.addWithoutUnique(m);
+
+                        AddNode adn = new AddNode(field0Size, m);
+                        graph.addWithoutUnique(adn);
+
+                        AddNode addOffset1 = new AddNode(multOffset0, adn);
+                        graph.addWithoutUnique(addOffset1);
+
+                        adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                        // ----- Access Field 2
+                        AddNode adNode2 = getAddInput(readAddressNodes, 2);
+
+                        Node adInput2 = null;
+                        for (Node adin : adNode2.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput2 = adin;
+                            }
+                        }
+
+                        if (adInput2 != null) {
+                            identifyNodesToBeDeleted(adInput2, nodesToBeDeleted);
+                        }
+
+                        int sizeOfField0Field1;
+                        // new nodes
+                        if (differentTypes) {
+                            sizeOfField0Field1 = arrayFieldTotalBytes + 8;
+                        } else {
+                            sizeOfField0Field1 = arrayFieldTotalBytes + fieldSizes.get(0);
+                        }
+
+                        Constant fields0plus1SizeConst = new RawConstant(sizeOfField0Field1);
+                        ConstantNode fields01Size = new ConstantNode(fields0plus1SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fields01Size);
+
+                        AddNode addOffset2 = new AddNode(fields01Size, multOffset0);
+                        graph.addWithoutUnique(addOffset2);
+
+                        adNode2.replaceFirstInput(adInput2, addOffset2);
+
+                        for (Node n : nodesToBeDeleted.keySet()) {
+                            Integer[] count = nodesToBeDeleted.get(n);
+                            // if the usages are as many as the occurrences delete
+                            if (count[0] == count[1]) {
+                                n.safeDelete();
+                            }
+                        }
+
+                        return;
+
+                    } else if (tupleArrayFieldNo == 2) {
+                        // if the third field of the Tuple3 is an array
+                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+
+                        Node adInput0 = null;
+                        for (Node adin : adNode0.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput0 = adin;
+                            }
+                        }
+
+                        if (adInput0 != null) {
+                            identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        int sizeOfFields;
+
+                        if (differentTypes) {
+                            sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                        } else {
+                            sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(0) + fieldSizes.get(1);
+                        }
+
+                        Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                        ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fieldsSize);
+
+                        MulNode multOffset0 = new MulNode(signExt, fieldsSize);
+                        graph.addWithoutUnique(multOffset0);
+
+                        adNode0.replaceFirstInput(adInput0, multOffset0);
+
+                        // ------ Access Field 1
+                        AddNode adNode1 = getAddInput(readAddressNodes, 1);
+
+                        Node adInput1 = null;
+                        for (Node adin : adNode1.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput1 = adin;
+                            }
+                        }
+
+                        if (adInput1 != null) {
+                            identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        Constant field0SizeConst;
+                        if (differentTypes) {
+                            field0SizeConst = new RawConstant(8);
+                        } else {
+                            field0SizeConst = new RawConstant(fieldSizes.get(0));
+                        }
+                        ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(field0Size);
+
+                        AddNode addOffset1 = new AddNode(fieldsSize, field0Size);
+                        graph.addWithoutUnique(addOffset1);
+
+                        adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                        // ----- Access Field 2
+                        AddNode adNode2 = getAddInput(readAddressNodes, 2);
+
+                        Node adInput2 = null;
+                        for (Node adin : adNode2.inputs()) {
+                            if (!(adin instanceof ConstantNode)) {
+                                adInput2 = adin;
+                            }
+                        }
+
+                        if (adInput2 != null) {
+                            identifyNodesToBeDeleted(adInput2, nodesToBeDeleted);
+                        }
+
+                        // new nodes
+                        Constant arrayFieldSizeConst;
+                        if (differentTypes) {
+                            // padding
+                            arrayFieldSizeConst = new RawConstant(8);
+                        } else {
+                            arrayFieldSizeConst = new RawConstant(fieldSizes.get(2));
+                        }
+                        ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayFieldSize);
+
+                        Constant arrayIndexConst = new RawConstant(arrayFieldIndex);
+                        ConstantNode arrayIndex = new ConstantNode(arrayIndexConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(arrayIndex);
+
+                        MulNode m = new MulNode(arrayFieldSize, arrayIndex);
+                        graph.addWithoutUnique(m);
+
+                        AddNode adNode = new AddNode(m, fieldsSize);
+                        graph.addWithoutUnique(adNode);
+
+                        int sizeOfField0Field1;
+
+                        if (differentTypes) {
+                            sizeOfField0Field1 = 8 + 8;
+                        } else {
+                            sizeOfField0Field1 = fieldSizes.get(0) + fieldSizes.get(1);
+                        }
+
+                        Constant fields0plus1SizeConst = new RawConstant(sizeOfField0Field1);
+                        ConstantNode fields01Size = new ConstantNode(fields0plus1SizeConst, StampFactory.positiveInt());
+                        graph.addWithoutUnique(fields01Size);
+
+                        AddNode addOffset2 = new AddNode(adNode, fields01Size);
+                        graph.addWithoutUnique(addOffset2);
+
+                        adNode2.replaceFirstInput(adInput2, addOffset2);
+
+                        for (Node n : nodesToBeDeleted.keySet()) {
+                            Integer[] count = nodesToBeDeleted.get(n);
+                            // if the usages are as many as the occurrences delete
+                            if (count[0] == count[1]) {
+                                n.safeDelete();
+                            }
+                        }
+
+                        return;
+
+                    }
                 }
             }
             return;
