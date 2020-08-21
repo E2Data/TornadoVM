@@ -8,6 +8,7 @@ import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.FixedGuardNode;
 import org.graalvm.compiler.nodes.FixedNode;
+import org.graalvm.compiler.nodes.PhiNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StartNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
@@ -51,6 +52,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
     private int nestedTupleField;
     private int sizeOfNestedTuple;
     private boolean broadcastedDataset;
+    private boolean arrayField;
+    private int tupleArrayFieldNo;
 
     void flinkSetCompInfo(FlinkCompilerInfo flinkCompilerInfo) {
         this.hasTuples = flinkCompilerInfo.getHasTuples();
@@ -66,6 +69,8 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
         this.nestedTupleField = flinkCompilerInfo.getNestedTupleField();
         this.sizeOfNestedTuple = flinkCompilerInfo.getSizeOfNestedTuple();
         this.broadcastedDataset = flinkCompilerInfo.getBroadcastedDataset();
+        this.arrayField = flinkCompilerInfo.getArrayField();
+        this.tupleArrayFieldNo = flinkCompilerInfo.getTupleArrayFieldNo();
     }
 
     @Override
@@ -884,6 +889,25 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         }
                     }
 
+                    LoadIndexedNode arrayLoadIndx = null;
+                    if (arrayField) {
+                        for (Node n : graph.getNodes()) {
+                            if (n instanceof LoadFieldNode && ((LoadFieldNode) n).field().toString().contains("f" + tupleArrayFieldNo)) {
+                                while (!(n.successors().first() instanceof LoadIndexedNode)) {
+                                    n = n.successors().first();
+                                }
+                                arrayLoadIndx = (LoadIndexedNode) n.successors().first().copyWithInputs();
+                                for (Node in : arrayLoadIndx.inputs()) {
+                                    if (in instanceof ConstantNode) {
+                                        ConstantNode c = (ConstantNode) in;
+                                        TornadoTupleOffset.arrayFieldIndex = Integer.parseInt(c.getValue().toValueString());
+                                    } else if (in instanceof PhiNode) {
+                                        TornadoTupleOffset.arrayIteration = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     ArrayList<LoadIndexedNode> loadindxNodes = new ArrayList<>();
 
                     // TODO: Create JavaKind types based on the info stored in TypeInfo
@@ -891,6 +915,10 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         if (n instanceof LoadFieldNode) {
                             LoadFieldNode ld = (LoadFieldNode) n;
                             if (ld.field().toString().contains("mdm")) {
+                                // WARNING: IF THE ACCESSING OF THE TUPLE FIELDS IS NOT SERIAL THEN THIS CAUSES
+                                // A PROBLEM
+                                // TODO: Scan graph to see the order the Tuple fields are accessed and place the
+                                // LooadIndexedNodes accordingly
                                 for (Node successor : ld.successors()) {
                                     if (successor instanceof LoadIndexedNode) {
                                         LoadIndexedNode idx = (LoadIndexedNode) successor;
@@ -1021,8 +1049,18 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                             if (returnTuple) {
                                 pred.replaceFirstSuccessor(pred.successors().first(), n);
                             } else {
-                                UnboxNode un = (UnboxNode) n;
-                                graph.replaceFixed(un, pred);
+                                if (arrayField) {
+                                    if (n instanceof LoadIndexedNode) {
+                                        LoadIndexedNode ldn = (LoadIndexedNode) n;
+                                        graph.replaceFixed(ldn, ldn.predecessor());
+                                    } else if (n instanceof UnboxNode) {
+                                        UnboxNode un = (UnboxNode) n;
+                                        graph.replaceFixed(un, pred);
+                                    }
+                                } else {
+                                    UnboxNode un = (UnboxNode) n;
+                                    graph.replaceFixed(un, pred);
+                                }
                             }
                         } else if (n instanceof BoxNode) {
                             for (Node u : n.usages()) {

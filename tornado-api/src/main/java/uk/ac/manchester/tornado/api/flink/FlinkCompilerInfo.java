@@ -17,10 +17,13 @@ public class FlinkCompilerInfo {
     private boolean nestedTuples;
     private int nestedTupleField;
     private int sizeOfNestedTuple;
+    private boolean arrayField;
+    private int tupleArrayFieldNo;
     // ----- TornadoTupleOffset
     private boolean differentTypes = false;
     private ArrayList<Integer> fieldSizes = new ArrayList<>();
     private ArrayList<String> fieldTypes = new ArrayList<>();
+    private int arrayFieldTotalBytes;
     // for KMeans
     private boolean differentTypesInner = false;
     private ArrayList<Integer> fieldSizesInner = new ArrayList<>();
@@ -82,6 +85,14 @@ public class FlinkCompilerInfo {
         this.sizeOfNestedTuple = sizeOfNestedTuple;
     }
 
+    public void setArrayField(boolean arrayField) {
+        this.arrayField = arrayField;
+    }
+
+    public void setTupleArrayFieldNo(int tupleArrayFieldNo) {
+        this.tupleArrayFieldNo = tupleArrayFieldNo;
+    }
+
     // --- TornadoTupleOffset
     public void setDifferentTypes(boolean differentTypes) {
         this.differentTypes = differentTypes;
@@ -117,6 +128,10 @@ public class FlinkCompilerInfo {
 
     public void setFieldTypesRet(ArrayList<String> fieldTypesRet) {
         this.fieldTypesRet = fieldTypesRet;
+    }
+
+    public void setArrayFieldTotalBytes(int arrayFieldTotalBytes) {
+        this.arrayFieldTotalBytes = arrayFieldTotalBytes;
     }
 
     // TornadoCollectionElimination
@@ -174,6 +189,14 @@ public class FlinkCompilerInfo {
         return this.sizeOfNestedTuple;
     }
 
+    public boolean getArrayField() {
+        return this.arrayField;
+    }
+
+    public int getTupleArrayFieldNo() {
+        return this.tupleArrayFieldNo;
+    }
+
     // --- TornadoTupleOffset
     public boolean getDifferentTypes() {
         return this.differentTypes;
@@ -209,6 +232,10 @@ public class FlinkCompilerInfo {
 
     public ArrayList<String> getFieldTypesRet() {
         return this.fieldTypesRet;
+    }
+
+    public int getArrayFieldTotalBytes() {
+        return this.arrayFieldTotalBytes;
     }
 
     // TornadoCollectionElimination
