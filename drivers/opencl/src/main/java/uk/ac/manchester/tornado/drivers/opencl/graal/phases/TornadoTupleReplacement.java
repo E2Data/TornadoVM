@@ -15,6 +15,7 @@ import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.calc.AddNode;
+import org.graalvm.compiler.nodes.calc.FloatConvertNode;
 import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.calc.MulNode;
 import org.graalvm.compiler.nodes.extended.BoxNode;
@@ -944,7 +945,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                             ldfn = new LoadIndexedNode(null, ldf0.array(), nextTupleIndx, null, JavaKind.fromJavaClass(tupleFieldKind.get(i)));
                                             // }
                                             graph.addWithoutUnique(ldfn);
-                                            graph.addAfterFixed(ldf0, ldfn);
+                                            graph.addAfterFixed(loadindxNodes.get(i - 1), ldfn);
                                             loadindxNodes.add(ldfn);
                                         }
                                         break;
@@ -1082,7 +1083,9 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                                     npred.replaceFirstSuccessor(n, nsuc);
                                     n.safeDelete();
                                 } else {
-                                    n.safeDelete();
+                                    if (!(n instanceof FloatConvertNode)) {
+                                        n.safeDelete();
+                                    }
                                 }
                             }
                         }
