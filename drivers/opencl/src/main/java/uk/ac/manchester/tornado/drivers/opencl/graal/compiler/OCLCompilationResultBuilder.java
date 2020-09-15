@@ -30,6 +30,7 @@ import static uk.ac.manchester.tornado.runtime.graal.TornadoLIRGenerator.trace;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -49,6 +50,11 @@ import org.graalvm.compiler.lir.asm.DataBuilder;
 import org.graalvm.compiler.lir.asm.FrameContext;
 import org.graalvm.compiler.lir.framemap.FrameMap;
 import org.graalvm.compiler.nodes.AbstractMergeNode;
+import org.graalvm.compiler.nodes.EndNode;
+import org.graalvm.compiler.nodes.FixedNode;
+import org.graalvm.compiler.nodes.IfNode;
+import org.graalvm.compiler.nodes.LoopExitNode;
+import org.graalvm.compiler.nodes.MergeNode;
 import org.graalvm.compiler.nodes.cfg.Block;
 import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
 import org.graalvm.compiler.options.OptionValues;
@@ -75,6 +81,7 @@ public class OCLCompilationResultBuilder extends CompilationResultBuilder {
     private int loops = 0;
     private boolean isParallel;
     private OCLDeviceContext deviceContext;
+    HashSet<Block> rescheduledBasicBlocks;
 
     public OCLCompilationResultBuilder(CodeCacheProvider codeCache, ForeignCallsProvider foreignCalls, FrameMap frameMap, Assembler asm, DataBuilder dataBuilder, FrameContext frameContext,
             OCLCompilationResult compilationResult, OptionValues options) {
@@ -269,7 +276,6 @@ public class OCLCompilationResultBuilder extends CompilationResultBuilder {
                     if (!isLoopDependencyNode(lir.getLIRforBlock(block).get(j))) {
                         emitOp(this, lir.getLIRforBlock(block).get(j));
                         opPreEmit = lir.getLIRforBlock(block).get(j);
-                        continue;
                     }
                 }
                 break;
@@ -350,41 +356,70 @@ public class OCLCompilationResultBuilder extends CompilationResultBuilder {
         }
     }
 
-    private static void traverseControlFlowGraph(ControlFlowGraph cfg, OCLBlockVisitor visitor) {
-        traverseControlFlowGraph(cfg.getStartBlock(), visitor, new HashSet<>());
-    }
-
-    @SuppressWarnings("unused")
-    private static void traverseCurrentCfg(Block b, OCLBlockVisitor visitor) {
-        visitor.enter(b);
-        Block firstDominated = b.getFirstDominated();
-        while (firstDominated != null) {
-            traverseCurrentCfg(firstDominated, visitor);
-            firstDominated = firstDominated.getDominatedSibling();
+    private void traverseControlFlowGraph(ControlFlowGraph cfg, OCLBlockVisitor visitor) {
+        traverseControlFlowGraph(cfg.getStartBlock(), visitor, new HashSet<>(), new HashMap<>());
+        if (rescheduledBasicBlocks != null) {
+            rescheduledBasicBlocks.clear();
         }
-        visitor.exit(b, null);
     }
 
-    private static void traverseControlFlowGraph(Block b, OCLBlockVisitor visitor, HashSet<Block> visited) {
+    private void rescheduleBasicBlock(Block basicBlock, OCLBlockVisitor visitor, HashSet<Block> visited, HashMap<Block, Block> pending) {
+        Block block = pending.get(basicBlock);
+        visitor.enter(block);
+        visitor.exit(block, null);
+        visited.add(block);
+        pending.remove(block);
+        if (rescheduledBasicBlocks == null) {
+            rescheduledBasicBlocks = new HashSet<>();
+        }
+        rescheduledBasicBlocks.add(block);
+    }
 
-        visitor.enter(b);
-        visited.add(b);
+    private void traverseControlFlowGraph(Block basicBlock, OCLBlockVisitor visitor, HashSet<Block> visited, HashMap<Block, Block> pending) {
 
-        Block firstDominated = b.getFirstDominated();
+        if (pending.containsKey(basicBlock) && !visited.contains(pending.get(basicBlock))) {
+            rescheduleBasicBlock(basicBlock, visitor, visited, pending);
+        }
+        visitor.enter(basicBlock);
+        visited.add(basicBlock);
+
+        Block firstDominated = basicBlock.getFirstDominated();
         LinkedList<Block> queue = new LinkedList<>();
         queue.add(firstDominated);
 
-        if (b.isLoopHeader()) {
-            Block[] successors = b.getSuccessors();
-            ArrayList<Block> last = new ArrayList<>();
+        if (basicBlock.isLoopHeader()) {
+            Block[] successors = basicBlock.getSuccessors();
+            LinkedList<Block> last = new LinkedList<>();
+            LinkedList<Block> pendingList = new LinkedList<>();
+
+            FixedNode endNode = basicBlock.getEndNode();
+            IfNode ifNode = null;
+            if (endNode instanceof IfNode) {
+                ifNode = (IfNode) endNode;
+            }
             for (Block block : successors) {
-                boolean isInnerLoop = isLoopBlock(block, b);
+                boolean isInnerLoop = isLoopBlock(block, basicBlock);
                 if (!isInnerLoop) {
-                    last.add(block);
+                    assert ifNode != null;
+                    if (ifNode.trueSuccessor() == block.getBeginNode() && block.getBeginNode() instanceof LoopExitNode && block.getEndNode() instanceof EndNode) {
+                        pendingList.addFirst(block);
+                        if (block.getPostdominator().getBeginNode() instanceof MergeNode) {
+                            // We may need to reschedule this block if it is not closed before visiting the
+                            // postDominator.
+                            pending.put(block.getPostdominator(), block);
+                        }
+                    } else {
+                        last.addLast(block);
+                    }
                 } else {
                     queue.addLast(block);
                 }
             }
+
+            for (Block l : pendingList) {
+                last.addLast(l);
+            }
+
             for (Block l : last) {
                 queue.addLast(l);
             }
@@ -395,12 +430,15 @@ public class OCLCompilationResultBuilder extends CompilationResultBuilder {
             firstDominated = block;
             while (firstDominated != null) {
                 if (!visited.contains(firstDominated)) {
-                    traverseControlFlowGraph(firstDominated, visitor, visited);
+                    traverseControlFlowGraph(firstDominated, visitor, visited, pending);
                 }
                 firstDominated = firstDominated.getDominatedSibling();
             }
         }
-        visitor.exit(b, null);
+
+        if (rescheduledBasicBlocks == null || (!rescheduledBasicBlocks.contains(basicBlock))) {
+            visitor.exit(basicBlock, null);
+        }
     }
 
     private static boolean isLoopBlock(Block block, Block loopHeader) {

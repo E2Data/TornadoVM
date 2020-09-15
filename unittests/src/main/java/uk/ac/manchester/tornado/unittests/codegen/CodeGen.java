@@ -17,12 +17,18 @@
  */
 package uk.ac.manchester.tornado.unittests.codegen;
 
+import static org.junit.Assert.assertArrayEquals;
+
+import java.util.Arrays;
 import java.util.stream.IntStream;
 
 import org.junit.Test;
 
 import uk.ac.manchester.tornado.api.TaskSchedule;
 import uk.ac.manchester.tornado.api.annotations.Parallel;
+import uk.ac.manchester.tornado.api.common.TornadoDevice;
+import uk.ac.manchester.tornado.api.enums.TornadoDeviceType;
+import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 import uk.ac.manchester.tornado.unittests.common.TornadoTestBase;
 
 public class CodeGen extends TornadoTestBase {
@@ -75,8 +81,27 @@ public class CodeGen extends TornadoTestBase {
         }
     }
 
+    public static void badCascadeKernel4() {
+        for (@Parallel int id = 0; id < 100; id++) {
+            boolean stillLooksLikeAFace = true;
+            for (int stage = 0; stillLooksLikeAFace && (stage < id); stage++) {
+                for (int t = 0; t < id; t++) {
+                    stillLooksLikeAFace = (t == 0);
+                }
+            }
+        }
+    }
+
+    private boolean isRunningOnCPU() {
+        TornadoDevice device = TornadoRuntime.getTornadoRuntime().getDriver(0).getDevice(0);
+        return device.getDeviceType() == TornadoDeviceType.CPU;
+    }
+
     @Test
     public void test02() {
+        if (isRunningOnCPU()) {
+            return;
+        }
         TaskSchedule ts = new TaskSchedule("s0") //
                 .task("t0", CodeGen::badCascadeKernel2);
         ts.warmup();
@@ -84,8 +109,55 @@ public class CodeGen extends TornadoTestBase {
 
     @Test
     public void test03() {
+        if (isRunningOnCPU()) {
+            return;
+        }
         TaskSchedule ts = new TaskSchedule("s0") //
                 .task("t0", CodeGen::badCascadeKernel3);
         ts.warmup();
     }
+
+    @Test
+    public void test04() {
+        if (isRunningOnCPU()) {
+            return;
+        }
+        TaskSchedule ts = new TaskSchedule("s0") //
+                .task("t0", CodeGen::badCascadeKernel4);
+        ts.warmup();
+    }
+
+    /*
+     * The following test is not intended to execute in parallel. This test shows
+     * more complex control flow, in which there is an exit block followed by a
+     * merge to represent the break in the first if-condition.
+     * 
+     */
+    private static void breakStatement(int[] a) {
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] == 5) {
+                break;
+            }
+            a[i] += 5;
+        }
+        a[0] = 0;
+    }
+
+    @Test
+    public void test05() {
+        final int size = 8192;
+        int[] a = new int[size];
+        Arrays.fill(a, 10);
+        a[12] = 5;
+        int[] serial = Arrays.copyOf(a, a.length);
+        breakStatement(serial);
+
+        new TaskSchedule("break") //
+                .task("task", CodeGen::breakStatement, a) //
+                .streamOut(a) //
+                .execute(); //
+
+        assertArrayEquals(serial, a);
+    }
+
 }
