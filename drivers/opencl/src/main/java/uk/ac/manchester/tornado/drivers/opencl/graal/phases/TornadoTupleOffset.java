@@ -4,7 +4,6 @@ import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.RawConstant;
 
-import org.apache.commons.math3.analysis.function.Add;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.ConstantNode;
@@ -22,7 +21,9 @@ import org.graalvm.compiler.phases.Phase;
 
 import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLAddressNode;
+import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.DummyFixed;
 import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.GlobalThreadIdNode;
+import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.CopyArrayTupleField;
 import uk.ac.manchester.tornado.runtime.FlinkCompilerInfoIntermediate;
 
 import java.util.ArrayList;
@@ -44,6 +45,9 @@ public class TornadoTupleOffset extends Phase {
     private boolean arrayField;
     private int tupleArrayFieldNo;
     private int arrayFieldTotalBytes;
+    private boolean returnArrayField;
+    private int returnTupleArrayFieldNo;
+    private int returnArrayFieldTotalBytes;
 
     private boolean broadcastedDataset;
 
@@ -64,6 +68,9 @@ public class TornadoTupleOffset extends Phase {
         this.arrayField = flinkCompilerInfo.getArrayField();
         this.tupleArrayFieldNo = flinkCompilerInfo.getTupleArrayFieldNo();
         this.arrayFieldTotalBytes = flinkCompilerInfo.getArrayFieldTotalBytes();
+        this.returnArrayField = flinkCompilerInfo.getReturnArrayField();
+        this.returnTupleArrayFieldNo = flinkCompilerInfo.getReturnTupleArrayFieldNo();
+        this.returnArrayFieldTotalBytes = flinkCompilerInfo.getReturnArrayFieldTotalBytes();
     }
 
     private void retInnerOCL(Node n, ValuePhiNode ph, ArrayList<OCLAddressNode> innerReads, OCLAddressNode ocl) {
@@ -180,7 +187,7 @@ public class TornadoTupleOffset extends Phase {
         if (fcomp != null) {
             flinkSetCompInfo(fcomp);
         }
-
+        OCLAddressNode oclRead = null;
         if (arrayField) {
             // sanity check
             if (fieldSizes.size() > 3) {
@@ -213,12 +220,38 @@ public class TornadoTupleOffset extends Phase {
                 }
 
                 if (signExt == null) {
-                    System.out.println("NO SIGNEXTEND AFTER PHI!!!");
-                    return;
+                    SignExtendNode sgnEx = null;
+                    for (Node phUse : ph.usages()) {
+                        if (phUse instanceof LeftShiftNode) {
+                            LeftShiftNode lsh = (LeftShiftNode) phUse;
+                            for (Node lshUse : lsh.usages()) {
+                                if (lshUse instanceof SignExtendNode) {
+                                    sgnEx = (SignExtendNode) lshUse;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (sgnEx == null) {
+                        return;
+                    } else {
+                        signExt = (SignExtendNode) sgnEx.copyWithInputs();
+                        for (Node in : signExt.inputs()) {
+                            signExt.replaceFirstInput(in, ph);
+                        }
+                    }
+
+                    if (signExt == null) {
+                        System.out.println("NO SIGNEXTEND AFTER PHI!!!");
+                        return;
+                    }
                 }
 
                 for (Node n : graph.getNodes()) {
-                    if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
+                    if (n instanceof FloatingReadNode /*
+                                                       * && !((FloatingReadNode)
+                                                       * n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")
+                                                       */) {
                         OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
                         returnFieldNumberSingleLoop(ocl, readAddressNodes, ocl, ph);
                     }
@@ -236,7 +269,39 @@ public class TornadoTupleOffset extends Phase {
                     if (tupleArrayFieldNo == 0) {
                         // if the first field of the Tuple2 is an array
                         // ----- Access Field 0
-                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+                        AddNode adNode = getAddInput(readAddressNodes, 0);
+
+                        int numOfOCL = 0;
+                        for (Node addUse : adNode.usages()) {
+                            if (addUse instanceof OCLAddressNode) {
+                                numOfOCL++;
+                            }
+                        }
+                        AddNode adNode0;
+                        if (numOfOCL > 1) {
+                            adNode0 = (AddNode) adNode.copyWithInputs();
+                            OCLAddressNode ocl = readAddressNodes.get(0);
+                            FloatingReadNode fr = null;
+                            for (Node us : ocl.usages()) {
+                                if (us instanceof FloatingReadNode) {
+                                    fr = (FloatingReadNode) us;
+                                }
+                            }
+
+                            OCLAddressNode ocln = (OCLAddressNode) ocl.copyWithInputs();
+                            ocln.replaceFirstInput(adNode, adNode0);
+                            if (fr != null) {
+                                fr.replaceFirstInput(ocl, ocln);
+                            } else {
+                                System.out.println("Floating Read Node is NULL");
+                            }
+                            // update hashmap
+                            readAddressNodes.replace(0, ocl, ocln);
+                            // delete old ocl node
+                            ocl.safeDelete();
+                        } else {
+                            adNode0 = adNode;
+                        }
 
                         Node adInput0 = null;
                         for (Node adin : adNode0.inputs()) {
@@ -245,7 +310,7 @@ public class TornadoTupleOffset extends Phase {
                             }
                         }
 
-                        if (adInput0 != null) {
+                        if (adInput0 != null && numOfOCL == 1) {
                             identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
                         }
                         // new nodes
@@ -283,6 +348,8 @@ public class TornadoTupleOffset extends Phase {
 
                         adNode0.replaceFirstInput(adInput0, addOffset0);
 
+                        oclRead = readAddressNodes.get(0);
+
                         // ----- Access Field 1
                         AddNode adNode1 = getAddInput(readAddressNodes, 1);
 
@@ -293,7 +360,7 @@ public class TornadoTupleOffset extends Phase {
                             }
                         }
 
-                        if (adInput1 != null) {
+                        if (adInput1 != null && numOfOCL == 1) {
                             identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
                         }
 
@@ -308,25 +375,46 @@ public class TornadoTupleOffset extends Phase {
 
                         adNode1.replaceFirstInput(adInput1, addOffset1);
 
-                        for (Node n : nodesToBeDeleted.keySet()) {
-                            Integer[] count = nodesToBeDeleted.get(n);
-                            // if the usages are as many as the occurrences delete
-                            if (count[0] == count[1]) {
-                                n.safeDelete();
+                        if (numOfOCL == 1) {
+                            for (Node n : nodesToBeDeleted.keySet()) {
+                                Integer[] count = nodesToBeDeleted.get(n);
+                                // if the usages are as many as the occurrences delete
+                                if (count[0] == count[1]) {
+                                    // System.out.println("= DELETE " + n);
+                                    n.safeDelete();
+                                }
                             }
                         }
-                        return;
+                        if (!differentTypesRet && !returnArrayField) {
+                            System.out.println("differentTypesRet: " + differentTypesRet + " returnArrayField: " + returnArrayField);
+                            return;
+                        }
+                        // return;
 
                     } else if (tupleArrayFieldNo == 1) {
                         // if the second field of the Tuple2 is an array
                         // ----- Access Field 0
-                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+                        AddNode adNode = getAddInput(readAddressNodes, 0);
 
                         Node adInput0 = null;
-                        for (Node adin : adNode0.inputs()) {
+                        for (Node adin : adNode.inputs()) {
                             if (!(adin instanceof ConstantNode)) {
                                 adInput0 = adin;
                             }
+                        }
+
+                        int numOfOCL = 0;
+                        for (Node addUse : adNode.usages()) {
+                            if (addUse instanceof OCLAddressNode) {
+                                numOfOCL++;
+                            }
+                        }
+                        AddNode adNode0;
+                        if (numOfOCL > 1) {
+                            System.out.println("More than one OCLNode");
+                            adNode0 = (AddNode) adNode.copyWithInputs();
+                        } else {
+                            adNode0 = adNode;
                         }
 
                         if (adInput0 != null) {
@@ -405,12 +493,14 @@ public class TornadoTupleOffset extends Phase {
                         for (Node n : nodesToBeDeleted.keySet()) {
                             Integer[] count = nodesToBeDeleted.get(n);
                             // if the usages are as many as the occurrences delete
+                            // System.out.println("DELETE " + n);
                             if (count[0] == count[1]) {
                                 n.safeDelete();
                             }
                         }
-
+                        // if (!differentTypesRet) {
                         return;
+                        // }
                     }
                 } else if (tupleSize == 3) {
                     // CASE: Tuple3
@@ -536,7 +626,20 @@ public class TornadoTupleOffset extends Phase {
                     } else if (tupleArrayFieldNo == 1) {
                         // if the second field of the Tuple3 is an array
                         // ----- Access Field 0
-                        AddNode adNode0 = getAddInput(readAddressNodes, 0);
+                        AddNode adNode = getAddInput(readAddressNodes, 0);
+                        int numOfOCL = 0;
+                        for (Node addUse : adNode.usages()) {
+                            if (addUse instanceof OCLAddressNode) {
+                                numOfOCL++;
+                            }
+                        }
+                        AddNode adNode0;
+                        if (numOfOCL > 1) {
+                            System.out.println("More than one OCLNode");
+                            adNode0 = (AddNode) adNode.copyWithInputs();
+                        } else {
+                            adNode0 = adNode;
+                        }
 
                         Node adInput0 = null;
                         for (Node adin : adNode0.inputs()) {
@@ -784,72 +887,376 @@ public class TornadoTupleOffset extends Phase {
                     }
                 }
             }
-            return;
+            // return;
         }
-        if (broadcastedDataset) {
-            if (differentTypesInner) {
 
-                if (fieldSizesInner.size() > 4) {
-                    System.out.println("[TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
-                    return;
+        if (returnArrayField) {
+            //
+            HashMap<Integer, OCLAddressNode> writeAddressNodes = new HashMap();
+
+            ValuePhiNode ph = null;
+            SignExtendNode signExt = null;
+
+            for (Node n : graph.getNodes()) {
+                if (n instanceof ValuePhiNode) {
+                    ph = (ValuePhiNode) n;
                 }
+            }
 
-                // find outer loop phi node
-                ValuePhiNode parallelPhNode = null;
+            if (ph == null)
+                return;
 
-                for (Node n : graph.getNodes()) {
-                    if (n instanceof ValuePhiNode) {
-                        ValuePhiNode ph = (ValuePhiNode) n;
-                        for (Node in : ph.inputs()) {
-                            if (in instanceof GlobalThreadIdNode) {
-                                parallelPhNode = ph;
+            for (Node phUse : ph.usages()) {
+                if (phUse instanceof SignExtendNode) {
+                    signExt = (SignExtendNode) phUse;
+                }
+            }
+
+            if (signExt == null) {
+                SignExtendNode sgnEx = null;
+                for (Node phUse : ph.usages()) {
+                    if (phUse instanceof LeftShiftNode) {
+                        LeftShiftNode lsh = (LeftShiftNode) phUse;
+                        for (Node lshUse : lsh.usages()) {
+                            if (lshUse instanceof SignExtendNode) {
+                                sgnEx = (SignExtendNode) lshUse;
                                 break;
                             }
                         }
-                        if (parallelPhNode != null)
-                            break;
+                    }
+                }
+                if (sgnEx == null) {
+                    return;
+                } else {
+                    signExt = (SignExtendNode) sgnEx.copyWithInputs();
+                    for (Node in : signExt.inputs()) {
+                        signExt.replaceFirstInput(in, ph);
                     }
                 }
 
-                ValuePhiNode innerPhi = null;
+                if (signExt == null) {
+                    System.out.println("NO SIGNEXTEND AFTER PHI!!!");
+                    return;
+                }
+            }
 
-                for (Node n : graph.getNodes()) {
-                    if (n instanceof ValuePhiNode) {
-                        ValuePhiNode ph = (ValuePhiNode) n;
-                        if (ph.merge() != parallelPhNode.merge()) {
-                            for (Node us : ph.usages()) {
-                                if (us instanceof AddNode) {
-                                    innerPhi = ph;
+            for (Node n : graph.getNodes()) {
+                if (n instanceof WriteNode) {
+                    OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
+                    returnFieldNumberSingleLoop(ocl, writeAddressNodes, ocl, ph);
+                }
+            }
+
+            if (writeAddressNodes.size() == 0) {
+                // System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                return;
+            }
+            int tupleSize = fieldSizesRet.size();
+
+            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+            if (tupleSize == 2) {
+                // CASE: Tuple2
+                if (returnTupleArrayFieldNo == 0) {
+                    // if the first field of the Tuple2 is an array
+                    // ----- Access Field 0
+                    AddNode adNode = getAddInput(writeAddressNodes, 0);
+
+                    int numOfOCL = 0;
+                    for (Node addUse : adNode.usages()) {
+                        if (addUse instanceof OCLAddressNode) {
+                            numOfOCL++;
+                        }
+                    }
+                    AddNode adNode0;
+                    if (numOfOCL > 1) {
+                        adNode0 = (AddNode) adNode.copyWithInputs();
+                        OCLAddressNode ocl = writeAddressNodes.get(0);
+                        WriteNode wr = null;
+                        for (Node us : ocl.usages()) {
+                            if (us instanceof WriteNode) {
+                                wr = (WriteNode) us;
+                            }
+                        }
+
+                        OCLAddressNode ocln = (OCLAddressNode) ocl.copyWithInputs();
+                        ocln.replaceFirstInput(adNode, adNode0);
+                        if (wr != null) {
+                            wr.replaceFirstInput(ocl, ocln);
+                        } else {
+                            System.out.println("WriteNode is NULL");
+                        }
+                        // update hashmap
+                        writeAddressNodes.replace(0, ocl, ocln);
+                        // delete old ocl node
+                        ocl.safeDelete();
+                    } else {
+                        adNode0 = adNode;
+                    }
+
+                    Node adInput0 = null;
+                    for (Node adin : adNode0.inputs()) {
+                        if (!(adin instanceof ConstantNode)) {
+                            adInput0 = adin;
+                        }
+                    }
+
+                    if (adInput0 != null && numOfOCL == 1) {
+                        identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                    }
+                    // new nodes
+                    Constant arrayFieldSizeConst;
+                    if (differentTypesRet) {
+                        // padding
+                        arrayFieldSizeConst = new RawConstant(8);
+                    } else {
+                        arrayFieldSizeConst = new RawConstant(fieldSizesRet.get(0));
+                    }
+                    ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                    graph.addWithoutUnique(arrayFieldSize);
+                    Constant arrayIndexConst = new RawConstant(arrayFieldIndex);
+                    ConstantNode arrayIndex = new ConstantNode(arrayIndexConst, StampFactory.positiveInt());
+                    graph.addWithoutUnique(arrayIndex);
+                    MulNode m = new MulNode(arrayFieldSize, arrayIndex);
+                    graph.addWithoutUnique(m);
+
+                    int sizeOfFields;
+
+                    if (differentTypesRet) {
+                        sizeOfFields = returnArrayFieldTotalBytes + 8;
+                    } else {
+                        sizeOfFields = returnArrayFieldTotalBytes + fieldSizesRet.get(1);
+                    }
+
+                    Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                    ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                    graph.addWithoutUnique(fieldsSize);
+                    MulNode m2 = new MulNode(fieldsSize, signExt);
+                    graph.addWithoutUnique(m2);
+
+                    AddNode addOffset0 = new AddNode(m, m2);
+                    graph.addWithoutUnique(addOffset0);
+
+                    adNode0.replaceFirstInput(adInput0, addOffset0);
+
+                    // OCLAddressNode ocl = writeAddressNodes.get(0);
+                    // WriteNode wr = null;
+                    // for (Node us : ocl.usages()) {
+                    // if (us instanceof WriteNode) {
+                    // wr = (WriteNode) us;
+                    // }
+                    // }
+
+                    // CopyArrayTupleField cpAr = new CopyArrayTupleField();
+                    //
+                    // graph.addWithoutUnique(cpAr);
+                    //
+                    // graph.addBeforeFixed(wr, cpAr);
+                    //
+                    // WriteNode cpWr = (WriteNode) wr.copyWithInputs();
+                    // // graph.addWithoutUnique(cpWr);
+                    //
+                    // FloatingReadNode fr = null;
+                    // for (Node in : wr.inputs()) {
+                    // if (in instanceof FloatingReadNode) {
+                    // fr = (FloatingReadNode) in;
+                    // break;
+                    // }
+                    // }
+                    //
+                    // cpAr.replaceAtUsages(cpWr);
+                    //
+                    // cpWr.safeDelete();
+
+                    // cpAr.replaceFirstInput(null, fr);
+
+                    // for (Node in : wr.inputs()) {
+                    // if (in instanceof FloatingReadNode) {
+                    // wr.replaceFirstInput(in, cpAr);
+                    // }
+                    // }
+
+                    // WriteNode newWr = new WriteNode(wr.getAddress(), wr.getLocationIdentity(),
+                    // oclRead, wr.getBarrierType(), wr.isVolatile());
+                    // graph.addWithoutUnique(newWr);
+                    // graph.replaceFixed(wr, newWr);
+                    // ----- Access Field 1
+                    AddNode adNode1 = getAddInput(writeAddressNodes, 1);
+
+                    Node adInput1 = null;
+                    for (Node adin : adNode1.inputs()) {
+                        if (!(adin instanceof ConstantNode)) {
+                            adInput1 = adin;
+                        }
+                    }
+
+                    if (adInput1 != null && numOfOCL == 1) {
+                        identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                    }
+
+                    Constant field0SizeConst = new RawConstant(returnArrayFieldTotalBytes);
+                    ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                    graph.addWithoutUnique(field0Size);
+
+                    MulNode m3 = new MulNode(signExt, fieldsSize);
+                    graph.addWithoutUnique(m3);
+                    AddNode addOffset1 = new AddNode(field0Size, m3);
+                    graph.addWithoutUnique(addOffset1);
+
+                    adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                    if (numOfOCL == 1) {
+                        for (Node n : nodesToBeDeleted.keySet()) {
+                            Integer[] count = nodesToBeDeleted.get(n);
+                            // if the usages are as many as the occurrences delete
+                            if (count[0] == count[1]) {
+                                // System.out.println("= DELETE " + n);
+                                n.safeDelete();
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+
+        }
+
+        if (!arrayField) {
+            if (broadcastedDataset) {
+                if (differentTypesInner) {
+
+                    if (fieldSizesInner.size() > 4) {
+                        System.out.println("[TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
+                        return;
+                    }
+
+                    // find outer loop phi node
+                    ValuePhiNode parallelPhNode = null;
+
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof ValuePhiNode) {
+                            ValuePhiNode ph = (ValuePhiNode) n;
+                            for (Node in : ph.inputs()) {
+                                if (in instanceof GlobalThreadIdNode) {
+                                    parallelPhNode = ph;
                                     break;
+                                }
+                            }
+                            if (parallelPhNode != null)
+                                break;
+                        }
+                    }
+
+                    ValuePhiNode innerPhi = null;
+
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof ValuePhiNode) {
+                            ValuePhiNode ph = (ValuePhiNode) n;
+                            if (ph.merge() != parallelPhNode.merge()) {
+                                for (Node us : ph.usages()) {
+                                    if (us instanceof AddNode) {
+                                        innerPhi = ph;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
+
+                    // ArrayList<OCLAddressNode> readAddressNodes = new ArrayList<>();
+                    HashMap<Integer, OCLAddressNode> readAddressNodes = new HashMap();
+
+                    // first, we need to identify the read nodes of the inner loop
+                    ArrayList<OCLAddressNode> innerOCLNodes = new ArrayList<>();
+
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
+                            OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
+                            retInnerOCL(ocl, innerPhi, innerOCLNodes, ocl);
+                        }
+                    }
+
+                    for (OCLAddressNode n : innerOCLNodes) {
+                        returnFieldNumber(n, readAddressNodes, n, innerPhi);
+                    }
+
+                    if (readAddressNodes.size() == 0) {
+                        // System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                        return;
+                    }
+                    for (int i = 0; i < readAddressNodes.size(); i++) {
+                        if (fieldSizesInner.get(i) == 4) {
+                            AddNode addNode = null;
+                            for (Node oclin : readAddressNodes.get(i).inputs()) {
+                                if (oclin instanceof AddNode) {
+                                    addNode = (AddNode) oclin;
+                                }
+                            }
+
+                            LeftShiftNode sh = null;
+
+                            for (Node in : addNode.inputs()) {
+                                if (in instanceof LeftShiftNode) {
+                                    sh = (LeftShiftNode) in;
+                                }
+                            }
+
+                            ConstantNode c = null;
+                            for (Node in : sh.inputs()) {
+                                if (in instanceof ConstantNode) {
+                                    // sn2 = (SignExtendNode) in;
+                                    c = (ConstantNode) in;
+                                }
+                            }
+
+                            Constant offset;
+                            ConstantNode constOffset;
+                            offset = new RawConstant(3);
+                            constOffset = new ConstantNode(offset, StampFactory.forKind(JavaKind.Int));
+                            graph.addWithoutUnique(constOffset);
+
+                            sh.replaceFirstInput(c, constOffset);
+
+                        }
+                    }
+
+                }
+            }
+
+            if (differentTypes) {
+
+                // System.out.println("Different Types for outer loop");
+
+                if (fieldSizes.size() > 4) {
+                    System.out.println("Input [TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
+                    return;
                 }
 
                 // ArrayList<OCLAddressNode> readAddressNodes = new ArrayList<>();
                 HashMap<Integer, OCLAddressNode> readAddressNodes = new HashMap();
 
-                // first, we need to identify the read nodes of the inner loop
-                ArrayList<OCLAddressNode> innerOCLNodes = new ArrayList<>();
+                ValuePhiNode ph = null;
+
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof ValuePhiNode) {
+                        ph = (ValuePhiNode) n;
+                    }
+                }
 
                 for (Node n : graph.getNodes()) {
                     if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
                         OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
-                        retInnerOCL(ocl, innerPhi, innerOCLNodes, ocl);
+                        returnFieldNumberSingleLoop(ocl, readAddressNodes, ocl, ph);
                     }
-                }
-
-                for (OCLAddressNode n : innerOCLNodes) {
-                    returnFieldNumber(n, readAddressNodes, n, innerPhi);
                 }
 
                 if (readAddressNodes.size() == 0) {
                     // System.out.println("Oops, no elements in readAddressNodes HashMap!");
                     return;
                 }
+
                 for (int i = 0; i < readAddressNodes.size(); i++) {
-                    if (fieldSizesInner.get(i) == 4) {
+                    if (fieldSizes.get(i) == 4) {
                         AddNode addNode = null;
                         for (Node oclin : readAddressNodes.get(i).inputs()) {
                             if (oclin instanceof AddNode) {
@@ -883,79 +1290,8 @@ public class TornadoTupleOffset extends Phase {
 
                     }
                 }
-
             }
         }
-
-        if (differentTypes) {
-
-            // System.out.println("Different Types for outer loop");
-
-            if (fieldSizes.size() > 4) {
-                System.out.println("Input [TornadoTupleOffset phase WARNING]: We currently only support up to Tuple4.");
-                return;
-            }
-
-            // ArrayList<OCLAddressNode> readAddressNodes = new ArrayList<>();
-            HashMap<Integer, OCLAddressNode> readAddressNodes = new HashMap();
-
-            ValuePhiNode ph = null;
-
-            for (Node n : graph.getNodes()) {
-                if (n instanceof ValuePhiNode) {
-                    ph = (ValuePhiNode) n;
-                }
-            }
-
-            for (Node n : graph.getNodes()) {
-                if (n instanceof FloatingReadNode && !((FloatingReadNode) n).stamp(NodeView.DEFAULT).toString().contains("Lorg/apache/flink/")) {
-                    OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
-                    returnFieldNumberSingleLoop(ocl, readAddressNodes, ocl, ph);
-                }
-            }
-
-            if (readAddressNodes.size() == 0) {
-                // System.out.println("Oops, no elements in readAddressNodes HashMap!");
-                return;
-            }
-
-            for (int i = 0; i < readAddressNodes.size(); i++) {
-                if (fieldSizes.get(i) == 4) {
-                    AddNode addNode = null;
-                    for (Node oclin : readAddressNodes.get(i).inputs()) {
-                        if (oclin instanceof AddNode) {
-                            addNode = (AddNode) oclin;
-                        }
-                    }
-
-                    LeftShiftNode sh = null;
-
-                    for (Node in : addNode.inputs()) {
-                        if (in instanceof LeftShiftNode) {
-                            sh = (LeftShiftNode) in;
-                        }
-                    }
-
-                    ConstantNode c = null;
-                    for (Node in : sh.inputs()) {
-                        if (in instanceof ConstantNode) {
-                            // sn2 = (SignExtendNode) in;
-                            c = (ConstantNode) in;
-                        }
-                    }
-
-                    Constant offset;
-                    ConstantNode constOffset;
-                    offset = new RawConstant(3);
-                    constOffset = new ConstantNode(offset, StampFactory.forKind(JavaKind.Int));
-                    graph.addWithoutUnique(constOffset);
-
-                    sh.replaceFirstInput(c, constOffset);
-
-                }
-            }
-        }
-
         if (differentTypesRet) {
             // System.out.println("Return type fields are different!");
 
