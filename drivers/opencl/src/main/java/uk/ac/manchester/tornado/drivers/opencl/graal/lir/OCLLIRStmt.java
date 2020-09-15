@@ -23,9 +23,15 @@
  */
 package uk.ac.manchester.tornado.drivers.opencl.graal.lir;
 
+import jdk.vm.ci.meta.Constant;
+import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.RawConstant;
+import org.graalvm.compiler.core.common.LIRKind;
+import org.graalvm.compiler.lir.ConstantValue;
 import org.graalvm.compiler.lir.LIRInstruction;
 import org.graalvm.compiler.lir.LIRInstructionClass;
 import org.graalvm.compiler.lir.Opcode;
+import org.graalvm.compiler.lir.Variable;
 import org.graalvm.compiler.lir.asm.CompilationResultBuilder;
 
 import jdk.vm.ci.meta.AllocatableValue;
@@ -37,6 +43,14 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.compiler.OCLCompilationResu
 import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLUnary.MemoryAccess;
 import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLUnary.OCLAddressCast;
 import uk.ac.manchester.tornado.drivers.opencl.graal.meta.OCLMemorySpace;
+
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CLOSE_PARENTHESIS;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CURLY_BRACKET_CLOSE;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CURLY_BRACKET_OPEN;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.FOR_LOOP;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.LT;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.OPEN_PARENTHESIS;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.STMT_DELIMITER;
 
 public class OCLLIRStmt {
 
@@ -909,6 +923,38 @@ public class OCLLIRStmt {
                 asm.emitValue(crb, prg);
             }
 
+        }
+    }
+
+    public static class CopyArrayFieldExpr extends AbstractInstruction {
+
+        public static final LIRInstructionClass<CopyArrayFieldExpr> TYPE = LIRInstructionClass.create(CopyArrayFieldExpr.class);
+
+        protected int loopLimit;
+
+        public CopyArrayFieldExpr(int loopLimit) {
+            super(TYPE);
+            this.loopLimit = loopLimit;
+        }
+
+        @Override
+        public void emitCode(OCLCompilationResultBuilder crb, OCLAssembler asm) {
+            Variable index = new Variable(LIRKind.fromJavaKind(crb.target.arch, JavaKind.Int), 0);
+            Constant loopLimitConst = new RawConstant(this.loopLimit);
+            ConstantValue limitConstantVal = new ConstantValue(LIRKind.fromJavaKind(crb.target.arch, JavaKind.Int), loopLimitConst);
+            // for (; index < limit; ) { }
+            asm.indent();
+            asm.emitSymbol(FOR_LOOP);
+            asm.emitSymbol(OPEN_PARENTHESIS);
+            asm.emitSymbol(STMT_DELIMITER);
+            asm.emitValue(crb, index);
+            asm.emitSymbol(LT);
+            asm.emitValue(crb, limitConstantVal);
+            asm.emitSymbol(STMT_DELIMITER);
+            asm.emitSymbol(CLOSE_PARENTHESIS);
+            asm.emitSymbol(CURLY_BRACKET_OPEN);
+            asm.emitSymbol(CURLY_BRACKET_CLOSE);
+            asm.eolOff();
         }
     }
 }
