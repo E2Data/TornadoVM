@@ -19,11 +19,17 @@ public class FlinkCompilerInfo {
     private int sizeOfNestedTuple;
     private boolean arrayField;
     private int tupleArrayFieldNo;
+    private boolean broadcastedArrayField;
+    private int broadcastedTupleArrayFieldNo;
+    private boolean returnArrayField;
+    private int returnTupleArrayFieldNo;
     // ----- TornadoTupleOffset
     private boolean differentTypes = false;
     private ArrayList<Integer> fieldSizes = new ArrayList<>();
     private ArrayList<String> fieldTypes = new ArrayList<>();
     private int arrayFieldTotalBytes;
+    private int returnArrayFieldTotalBytes;
+    private int broadcastedArrayFieldTotalBytes;
     // for KMeans
     private boolean differentTypesInner = false;
     private ArrayList<Integer> fieldSizesInner = new ArrayList<>();
@@ -93,6 +99,22 @@ public class FlinkCompilerInfo {
         this.tupleArrayFieldNo = tupleArrayFieldNo;
     }
 
+    public void setBroadcastedArrayField(boolean broadcastedArrayField) {
+        this.broadcastedArrayField = broadcastedArrayField;
+    }
+
+    public void setBroadcastedTupleArrayFieldNo(int broadcastedTupleArrayFieldNo) {
+        this.broadcastedTupleArrayFieldNo = broadcastedTupleArrayFieldNo;
+    }
+
+    public void setReturnArrayField(boolean returnArrayField) {
+        this.returnArrayField = returnArrayField;
+    }
+
+    public void setReturnTupleArrayFieldNo(int returnTupleArrayFieldNo) {
+        this.returnTupleArrayFieldNo = returnTupleArrayFieldNo;
+    }
+
     // --- TornadoTupleOffset
     public void setDifferentTypes(boolean differentTypes) {
         this.differentTypes = differentTypes;
@@ -130,8 +152,16 @@ public class FlinkCompilerInfo {
         this.fieldTypesRet = fieldTypesRet;
     }
 
+    public void setBroadcastedArrayFieldTotalBytes(int broadcastedArrayFieldTotalBytes) {
+        this.broadcastedArrayFieldTotalBytes = broadcastedArrayFieldTotalBytes;
+    }
+
     public void setArrayFieldTotalBytes(int arrayFieldTotalBytes) {
         this.arrayFieldTotalBytes = arrayFieldTotalBytes;
+    }
+
+    public void setReturnArrayFieldTotalBytes(int returnArrayFieldTotalBytes) {
+        this.returnArrayFieldTotalBytes = returnArrayFieldTotalBytes;
     }
 
     // TornadoCollectionElimination
@@ -197,6 +227,22 @@ public class FlinkCompilerInfo {
         return this.tupleArrayFieldNo;
     }
 
+    public boolean getBroadcastedArrayField() {
+        return this.broadcastedArrayField;
+    }
+
+    public int getBroadcastedTupleArrayFieldNo() {
+        return this.broadcastedTupleArrayFieldNo;
+    }
+
+    public boolean getReturnArrayField() {
+        return this.returnArrayField;
+    }
+
+    public int getReturnTupleArrayFieldNo() {
+        return this.returnTupleArrayFieldNo;
+    }
+
     // --- TornadoTupleOffset
     public boolean getDifferentTypes() {
         return this.differentTypes;
@@ -236,6 +282,14 @@ public class FlinkCompilerInfo {
 
     public int getArrayFieldTotalBytes() {
         return this.arrayFieldTotalBytes;
+    }
+
+    public int getBroadcastedArrayFieldTotalBytes() {
+        return this.broadcastedArrayFieldTotalBytes;
+    }
+
+    public int getReturnArrayFieldTotalBytes() {
+        return this.returnArrayFieldTotalBytes;
     }
 
     // TornadoCollectionElimination
