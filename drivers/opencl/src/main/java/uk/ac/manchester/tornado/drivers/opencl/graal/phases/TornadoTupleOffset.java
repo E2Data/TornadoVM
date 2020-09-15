@@ -21,9 +21,7 @@ import org.graalvm.compiler.phases.Phase;
 
 import uk.ac.manchester.tornado.api.flink.FlinkCompilerInfo;
 import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLAddressNode;
-import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.DummyFixed;
 import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.GlobalThreadIdNode;
-import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.CopyArrayTupleField;
 import uk.ac.manchester.tornado.runtime.FlinkCompilerInfoIntermediate;
 
 import java.util.ArrayList;
