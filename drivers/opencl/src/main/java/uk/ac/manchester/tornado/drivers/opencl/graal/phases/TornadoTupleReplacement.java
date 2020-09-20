@@ -91,7 +91,6 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
         }
 
         if (hasTuples) {
-
             if (!broadcastedDataset) {
                 // at the moment we only handle cases where the input tuples are nested, for one
                 // for loop
@@ -1712,6 +1711,43 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                     fixG.safeDelete();
 
                 }
+            }
+
+            // if tuple contains an array, check if we copy the whole array
+            if (arrayField && returnArrayField) {
+
+                ArrayList<StoreIndexedNode> storeNodes = new ArrayList<>();
+                for (Node n : graph.getNodes()) {
+                    if (n instanceof StoreIndexedNode) {
+                        storeNodes.add((StoreIndexedNode) n);
+                    }
+                }
+
+                for (StoreIndexedNode st : storeNodes) {
+                    for (Node stIn : st.inputs()) {
+                        if (stIn instanceof LoadIndexedNode) {
+                            for (Node ldIn : stIn.inputs()) {
+                                if (ldIn instanceof MulNode) {
+                                    if (tupleArrayFieldNo == 0) {
+                                        TornadoTupleOffset.copyArray = true;
+                                    }
+                                } else if (ldIn instanceof AddNode) {
+                                    if (tupleArrayFieldNo != 0) {
+                                        for (Node addIn : ldIn.inputs()) {
+                                            if (addIn instanceof ConstantNode) {
+                                                int index = Integer.parseInt(((ConstantNode) addIn).getValue().toValueString());
+                                                if (index == tupleArrayFieldNo) {
+                                                    TornadoTupleOffset.copyArray = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
             }
         }
 

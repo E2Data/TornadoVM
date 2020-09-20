@@ -27,6 +27,7 @@ import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.RawConstant;
 import org.graalvm.compiler.core.common.LIRKind;
+import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.lir.ConstantValue;
 import org.graalvm.compiler.lir.LIRInstruction;
 import org.graalvm.compiler.lir.LIRInstructionClass;
@@ -44,13 +45,7 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLUnary.MemoryAccess;
 import uk.ac.manchester.tornado.drivers.opencl.graal.lir.OCLUnary.OCLAddressCast;
 import uk.ac.manchester.tornado.drivers.opencl.graal.meta.OCLMemorySpace;
 
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CLOSE_PARENTHESIS;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CURLY_BRACKET_CLOSE;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.CURLY_BRACKET_OPEN;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.FOR_LOOP;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.LT;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.OPEN_PARENTHESIS;
-import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.STMT_DELIMITER;
+import static uk.ac.manchester.tornado.drivers.opencl.graal.asm.OCLAssemblerConstants.*;
 
 public class OCLLIRStmt {
 
@@ -926,35 +921,281 @@ public class OCLLIRStmt {
         }
     }
 
-    public static class CopyArrayFieldExpr extends AbstractInstruction {
+    public static class CopyArrayField1Tuple2Expr extends AbstractInstruction {
 
-        public static final LIRInstructionClass<CopyArrayFieldExpr> TYPE = LIRInstructionClass.create(CopyArrayFieldExpr.class);
+        public static final LIRInstructionClass<CopyArrayField1Tuple2Expr> TYPE = LIRInstructionClass.create(CopyArrayField1Tuple2Expr.class);
 
-        protected int loopLimit;
+        @Use
+        Variable index;
 
-        public CopyArrayFieldExpr(int loopLimit) {
+        @Use
+        Value arrayLength;
+
+        @Use
+        Value arrayElementSize;
+
+        @Use
+        Value tupleSize;
+
+        @Use
+        Variable outerLoopIndex;
+
+        @Use
+        Variable var1;
+
+        @Use
+        Variable var2;
+
+        @Use
+        Variable var3;
+
+        @Use
+        Variable var4;
+
+        @Use
+        Variable var5;
+
+        @Use
+        Variable var6;
+
+        @Use
+        Variable var7;
+
+        @Use
+        Variable var8;
+
+        @Use
+        Variable var9;
+
+        @Use
+        Variable var10;
+
+        @Use
+        Value var11;
+
+        @Use
+        MemoryAccess readAddress;
+
+        @Use
+        MemoryAccess writeAddress;
+
+        @Use
+        Value zero;
+
+        @Use
+        Value header;
+
+        @Use
+        OCLAddressCast readCast;
+        @Use
+        OCLAddressCast writeCast;
+
+        String type;
+
+        public CopyArrayField1Tuple2Expr(Value tupleSize, Value arrayElementSize, Value arrayLength, Variable outerLoopIndex, Variable index, Variable var1, Variable var2, Variable var3,
+                Variable var4, Variable var5, Variable var6, Variable var7, Variable var8, Variable var9, Variable var10, Value var11, MemoryAccess readAddress, MemoryAccess writeAddress, Value zero,
+                Value header, String type, OCLAddressCast readCast, OCLAddressCast writeCast) {
             super(TYPE);
-            this.loopLimit = loopLimit;
+            this.tupleSize = tupleSize;
+            this.arrayElementSize = arrayElementSize;
+            this.arrayLength = arrayLength;
+            this.outerLoopIndex = outerLoopIndex;
+            this.index = index;
+            this.var1 = var1;
+            this.var2 = var2;
+            this.var3 = var3;
+            this.var4 = var4;
+            this.var5 = var5;
+            this.var6 = var6;
+            this.var7 = var7;
+            this.var8 = var8;
+            this.var9 = var9;
+            this.var10 = var10;
+            this.var11 = var11;
+            this.readAddress = readAddress;
+            this.writeAddress = writeAddress;
+            this.zero = zero;
+            this.header = header;
+            this.type = type;
+            this.readCast = readCast;
+            this.writeCast = writeCast;
         }
 
         @Override
         public void emitCode(OCLCompilationResultBuilder crb, OCLAssembler asm) {
-            Variable index = new Variable(LIRKind.fromJavaKind(crb.target.arch, JavaKind.Int), 0);
-            Constant loopLimitConst = new RawConstant(this.loopLimit);
-            ConstantValue limitConstantVal = new ConstantValue(LIRKind.fromJavaKind(crb.target.arch, JavaKind.Int), loopLimitConst);
-            // for (; index < limit; ) { }
+            // declare new variables
+            // -- index & intermediate variables for offset calculation
+            asm.indent();
+            asm.emitSymbol("int");
+            asm.emitSymbol(" ");
+            asm.emitValue(crb, index);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var1);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var2);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var3);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var7);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var8);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var9);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // -- variable that will store array element
+            asm.emitSymbol(type);
+            asm.emitSymbol(" ");
+            asm.emitValue(crb, var6);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // -- variables for read/write address
+            asm.emitSymbol("ulong");
+            asm.emitSymbol(" ");
+            asm.emitValue(crb, var5);
+            asm.emitSymbol(", ");
+            asm.emitValue(crb, var10);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            asm.emitValue(crb, index);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, zero);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
             asm.indent();
             asm.emitSymbol(FOR_LOOP);
             asm.emitSymbol(OPEN_PARENTHESIS);
             asm.emitSymbol(STMT_DELIMITER);
             asm.emitValue(crb, index);
-            asm.emitSymbol(LT);
-            asm.emitValue(crb, limitConstantVal);
+            asm.emitSymbol(" < ");
+            asm.emitValue(crb, arrayLength);
             asm.emitSymbol(STMT_DELIMITER);
             asm.emitSymbol(CLOSE_PARENTHESIS);
+            asm.emitSymbol(TAB);
             asm.emitSymbol(CURLY_BRACKET_OPEN);
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_10 = sizeOfArrayElement * index
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var1);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, arrayElementSize);
+            asm.emitSymbol(" * ");
+            asm.emitValue(crb, index);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_11 = sizeOfTuple(f0 + f1) * l_4
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var2);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, tupleSize);
+            asm.emitSymbol(" * ");
+            asm.emitValue(crb, outerLoopIndex);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_12 = i_10 + i_11
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var3);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, var1);
+            asm.emitSymbol(" + ");
+            asm.emitValue(crb, var2);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // ul_14 = (ul_0 + 24) + i_13;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var5);
+            asm.emitSymbol(" = ");
+            readAddress.emit(crb, asm);
+            asm.emitSymbol(" + ");
+            asm.emitValue(crb, var3);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // arrayElementVar = *((__global type *) ul_14);
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var6);
+            asm.emitSymbol(" = ");
+            asm.emit("*(");
+            readCast.emit(crb, asm);
+            asm.space();
+            asm.emitValue(crb, var5);
+            asm.emit(")");
+            asm.emitSymbol(";");
+            asm.space();
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_16 = sizeOfArrayElement * index;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var7);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, arrayElementSize);
+            asm.emitSymbol(" * ");
+            asm.emitValue(crb, index);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_17 = sizeOfTuple(f0 + f1) * l_4;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var8);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, tupleSize);
+            asm.emitSymbol(" * ");
+            asm.emitValue(crb, outerLoopIndex);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // i_18 = i_16 + i_17;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var9);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, var7);
+            asm.emitSymbol(" + ");
+            asm.emitValue(crb, var8);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // ul_20 = (ul_1 + 24) + i_19;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, var10);
+            asm.emitSymbol(" = ");
+            writeAddress.emit(crb, asm);
+            asm.emitSymbol(" + ");
+            asm.emitValue(crb, var9);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // *((__global type *) ul_20) = arrayElementVar;
+            asm.emitSymbol(TAB);
+            asm.emit("*(");
+            readCast.emit(crb, asm);
+            asm.space();
+            asm.emitValue(crb, var10);
+            asm.emit(")");
+            asm.space();
+            asm.assign();
+            asm.emitValue(crb, var6);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
+            // index++;
+            asm.emitSymbol(TAB);
+            asm.emitValue(crb, index);
+            asm.emitSymbol(" = ");
+            asm.emitValue(crb, index);
+            asm.emitSymbol(" + ");
+            asm.emitValue(crb, var11);
+            asm.emitSymbol(";");
+            asm.emitSymbol(EOL);
+            asm.indent();
             asm.emitSymbol(CURLY_BRACKET_CLOSE);
-            asm.eolOff();
+            asm.emitSymbol(EOL);
         }
     }
 }
