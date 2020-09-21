@@ -30,6 +30,7 @@ public class FlinkCompilerInfo {
     private int arrayFieldTotalBytes;
     private int returnArrayFieldTotalBytes;
     private int broadcastedArrayFieldTotalBytes;
+    private String arrayType;
     // for KMeans
     private boolean differentTypesInner = false;
     private ArrayList<Integer> fieldSizesInner = new ArrayList<>();
@@ -164,6 +165,10 @@ public class FlinkCompilerInfo {
         this.returnArrayFieldTotalBytes = returnArrayFieldTotalBytes;
     }
 
+    public void setArrayType(String arrayType) {
+        this.arrayType = arrayType;
+    }
+
     // TornadoCollectionElimination
     public void setBroadcastedDataset(boolean broadcastedDataset) {
         this.broadcastedDataset = broadcastedDataset;
@@ -295,5 +300,9 @@ public class FlinkCompilerInfo {
     // TornadoCollectionElimination
     public boolean getBroadcastedDataset() {
         return this.broadcastedDataset;
+    }
+
+    public String getArrayType() {
+        return this.arrayType;
     }
 }

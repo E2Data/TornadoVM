@@ -44,6 +44,7 @@ public class TornadoTupleOffset extends Phase {
     private boolean returnArrayField;
     private int returnTupleArrayFieldNo;
     private int returnArrayFieldTotalBytes;
+    private String arrayType;
 
     private boolean broadcastedDataset;
 
@@ -69,6 +70,7 @@ public class TornadoTupleOffset extends Phase {
         this.returnArrayField = flinkCompilerInfo.getReturnArrayField();
         this.returnTupleArrayFieldNo = flinkCompilerInfo.getReturnTupleArrayFieldNo();
         this.returnArrayFieldTotalBytes = flinkCompilerInfo.getReturnArrayFieldTotalBytes();
+        this.arrayType = flinkCompilerInfo.getArrayType();
     }
 
     private void retInnerOCL(Node n, ValuePhiNode ph, ArrayList<OCLAddressNode> innerReads, OCLAddressNode ocl) {
@@ -1263,9 +1265,10 @@ public class TornadoTupleOffset extends Phase {
                     int arrayLength = arrayFieldTotalBytes / arrayFieldSize;
 
                     identifyNodesToBeDeleted(wr, nodesToBeDeleted);
-                    String type = "double";
+
                     Node pred = wr.predecessor();
-                    CopyArrayTupleField cpAr = new CopyArrayTupleField(sizeOfFields, arrayFieldSize, arrayLength, ph, readAddress, writeAddress, type, readStamp, returnTupleArrayFieldNo, tupleSize);
+                    CopyArrayTupleField cpAr = new CopyArrayTupleField(sizeOfFields, arrayFieldSize, arrayLength, ph, readAddress, writeAddress, arrayType, readStamp, returnTupleArrayFieldNo,
+                            tupleSize);
                     graph.addWithoutUnique(cpAr);
                     graph.addAfterFixed((FixedWithNextNode) pred, cpAr);
 
