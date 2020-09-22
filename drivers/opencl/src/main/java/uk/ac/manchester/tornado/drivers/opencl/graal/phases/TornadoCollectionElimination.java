@@ -112,7 +112,6 @@ public class TornadoCollectionElimination extends BasePhase<TornadoHighTierConte
 
                             for (int i = 0; i < nodesToBeRemoved.size(); i++) {
                                 Node del = nodesToBeRemoved.get(i);
-                                System.out.println("CollectionElimination: Delete -> " + del);
                                 if (del instanceof LoadFieldNode) {
                                     del.safeDelete();
                                 } else {
