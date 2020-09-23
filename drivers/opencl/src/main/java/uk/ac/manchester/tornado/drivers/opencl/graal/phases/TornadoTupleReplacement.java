@@ -36,10 +36,7 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.nodes.GlobalThreadIdNode;
 import uk.ac.manchester.tornado.runtime.FlinkCompilerInfoIntermediate;
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
+import java.util.*;
 
 public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
@@ -765,13 +762,66 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         for (Node n : graph.getNodes()) {
                             if (n instanceof CommitAllocationNode) {
                                 alloc = true;
-                                for (Node in : n.inputs()) {
-                                    if (!(in instanceof VirtualInstanceNode)) {
-                                        storeTupleInputs.add((ValueNode) in);
+                                CommitAllocationNode cm = (CommitAllocationNode) n;
+                                List<ValueNode> commitAllocValues = cm.getValues();
+                                // List<VirtualObjectNode> commitAllocVirtualOb = cm.getVirtualObjects();
+                                int nestedPos = -1;
+                                int sizeOfNested = -1;
+                                for (int i = 0; i < commitAllocValues.size(); i++) {
+                                    ValueNode val = commitAllocValues.get(i);
+                                    if (val instanceof VirtualInstanceNode) {
+                                        nestedPos = i;
+                                        VirtualInstanceNode vinst = (VirtualInstanceNode) val;
+                                        sizeOfNested = vinst.getFields().length;
                                     }
                                 }
+                                int i = 0;
+                                int k = 0;
+                                int numOfVal = commitAllocValues.size();
+                                if (nestedPos != -1) {
+                                    while (k < returnTupleSize) {
+                                        if (i == nestedPos) {
+                                            for (int j = 0; j < sizeOfNested; j++) {
+                                                storeTupleInputs.add(i + j, commitAllocValues.get(numOfVal - sizeOfNested + j));
+                                            }
+                                            i++;
+                                            k += sizeOfNested;
+                                        } else {
+                                            storeTupleInputs.add(k, commitAllocValues.get(i));
+                                            i++;
+                                            k++;
+                                        }
+                                    }
+                                } else {
+                                    for (Node stin : commitAllocValues) {
+                                        if (stin instanceof ValueNode) {
+                                            storeTupleInputs.add((ValueNode) stin);
+                                        }
+                                    }
+                                }
+
+                                // for (Node in : n.inputs()) {
+                                // if (!(in instanceof VirtualInstanceNode)) {
+                                // storeTupleInputs.add((ValueNode) in);
+                                // }
+                                // }
                             }
                         }
+
+                        // for (int i = 0; i < storeTupleInputs.size() - 1; i++) {
+                        // ValueNode n = storeTupleInputs.get(i);
+                        // ValueNode nnext = storeTupleInputs.get(i + 1);
+                        // if (n.getId() > nnext.getId()) {
+                        // storeTupleInputs.set(i, nnext);
+                        // storeTupleInputs.set(i + 1, n);
+                        // }
+                        // }
+                        // if (returnNestedTuple) {
+
+                        // for (Node n : storeTupleInputs) {
+                        // System.out.println("-- sorted " + n);
+                        // }
+                        // }
 
                         MulNode returnIndexOffset = null;
                         Constant returnTupleSizeConst = null;
