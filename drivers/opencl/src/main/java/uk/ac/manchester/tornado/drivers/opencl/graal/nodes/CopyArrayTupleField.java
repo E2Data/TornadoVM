@@ -34,10 +34,10 @@ public class CopyArrayTupleField extends FixedWithNextNode implements LIRLowerab
     public static final NodeClass<CopyArrayTupleField> TYPE = NodeClass.create(CopyArrayTupleField.class);
 
     private int tupleSize;
+    private int tupleSizeRet;
     private int arrayElementSize;
     private int arrayLength;
     private int tupleArrayFieldNo;
-    private int numberOfTupleFields;
     private String type;
     private Stamp readStamp;
 
@@ -48,19 +48,19 @@ public class CopyArrayTupleField extends FixedWithNextNode implements LIRLowerab
     @Input
     private OCLAddressNode writeAddress;
 
-    public CopyArrayTupleField(int tupleSize, int arrayElementSize, int arrayLength, PhiNode outerLoopIndex, OCLAddressNode readAddress, OCLAddressNode writeAddress, String type, Stamp readStamp,
-            int tupleArrayFieldNo, int numberOfTupleFields) {
+    public CopyArrayTupleField(int tupleSize, int tupleSizeRet, int arrayElementSize, int arrayLength, PhiNode outerLoopIndex, OCLAddressNode readAddress, OCLAddressNode writeAddress, String type,
+            Stamp readStamp, int tupleArrayFieldNo) {
         super(TYPE, StampFactory.forVoid());
         this.readAddress = readAddress;
         this.writeAddress = writeAddress;
         this.tupleSize = tupleSize;
+        this.tupleSizeRet = tupleSizeRet;
         this.arrayElementSize = arrayElementSize;
         this.arrayLength = arrayLength;
         this.outerLoopIndex = outerLoopIndex;
         this.type = type;
         this.readStamp = readStamp;
         this.tupleArrayFieldNo = tupleArrayFieldNo;
-        this.numberOfTupleFields = numberOfTupleFields;
     }
 
     public CopyArrayTupleField() {
@@ -102,7 +102,7 @@ public class CopyArrayTupleField extends FixedWithNextNode implements LIRLowerab
 
     @Override
     public void generate(NodeLIRBuilderTool generator) {
-        if (numberOfTupleFields == 2 && tupleArrayFieldNo == 0) {
+        if (tupleArrayFieldNo == 0) {
             LIRGeneratorTool tool = generator.getLIRGeneratorTool();
             // i_10
             Variable var1 = tool.newVariable(tool.getLIRKind(StampFactory.intValue()));
@@ -139,6 +139,9 @@ public class CopyArrayTupleField extends FixedWithNextNode implements LIRLowerab
             // tupleSize
             Constant tupleSizeConst = new RawConstant(tupleSize);
             Value tupSize = tool.emitConstant(tool.getLIRKind(StampFactory.intValue()), tupleSizeConst);
+            // tupleSizeRet
+            Constant tupleSizeRetConst = new RawConstant(tupleSizeRet);
+            Value tupSizeRet = tool.emitConstant(tool.getLIRKind(StampFactory.intValue()), tupleSizeRetConst);
             // zero
             Constant zeroConst = new RawConstant(0);
             Value zero = tool.emitConstant(tool.getLIRKind(StampFactory.intValue()), zeroConst);
@@ -167,8 +170,8 @@ public class CopyArrayTupleField extends FixedWithNextNode implements LIRLowerab
             OCLUnary.OCLAddressCast readCast = new OCLUnary.OCLAddressCast(readBase, LIRKind.value(oclKind));
             OCLUnary.OCLAddressCast writeCast = new OCLUnary.OCLAddressCast(writeBase, LIRKind.value(oclKind));
 
-            tool.append(new OCLLIRStmt.CopyArrayField1Tuple2Expr(tupSize, elSize, arLength, loopVar, index, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, memRead, memWrite, zero,
-                    header, type, readCast, writeCast));
+            tool.append(new OCLLIRStmt.CopyArrayField1TupleExpr(tupSize, tupSizeRet, elSize, arLength, loopVar, index, var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, memRead,
+                    memWrite, zero, header, type, readCast, writeCast));
         }
     }
 

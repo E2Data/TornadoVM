@@ -921,9 +921,9 @@ public class OCLLIRStmt {
         }
     }
 
-    public static class CopyArrayField1Tuple2Expr extends AbstractInstruction {
+    public static class CopyArrayField1TupleExpr extends AbstractInstruction {
 
-        public static final LIRInstructionClass<CopyArrayField1Tuple2Expr> TYPE = LIRInstructionClass.create(CopyArrayField1Tuple2Expr.class);
+        public static final LIRInstructionClass<CopyArrayField1TupleExpr> TYPE = LIRInstructionClass.create(CopyArrayField1TupleExpr.class);
 
         @Use
         Variable index;
@@ -936,6 +936,9 @@ public class OCLLIRStmt {
 
         @Use
         Value tupleSize;
+
+        @Use
+        Value tupleSizeRet;
 
         @Use
         Variable outerLoopIndex;
@@ -992,11 +995,12 @@ public class OCLLIRStmt {
 
         String type;
 
-        public CopyArrayField1Tuple2Expr(Value tupleSize, Value arrayElementSize, Value arrayLength, Variable outerLoopIndex, Variable index, Variable var1, Variable var2, Variable var3,
-                Variable var4, Variable var5, Variable var6, Variable var7, Variable var8, Variable var9, Variable var10, Value var11, MemoryAccess readAddress, MemoryAccess writeAddress, Value zero,
-                Value header, String type, OCLAddressCast readCast, OCLAddressCast writeCast) {
+        public CopyArrayField1TupleExpr(Value tupleSize, Value tupleSizeRet, Value arrayElementSize, Value arrayLength, Variable outerLoopIndex, Variable index, Variable var1, Variable var2,
+                Variable var3, Variable var4, Variable var5, Variable var6, Variable var7, Variable var8, Variable var9, Variable var10, Value var11, MemoryAccess readAddress,
+                MemoryAccess writeAddress, Value zero, Value header, String type, OCLAddressCast readCast, OCLAddressCast writeCast) {
             super(TYPE);
             this.tupleSize = tupleSize;
+            this.tupleSizeRet = tupleSizeRet;
             this.arrayElementSize = arrayElementSize;
             this.arrayLength = arrayLength;
             this.outerLoopIndex = outerLoopIndex;
@@ -1145,7 +1149,7 @@ public class OCLLIRStmt {
             asm.emitSymbol(TAB);
             asm.emitValue(crb, var8);
             asm.emitSymbol(" = ");
-            asm.emitValue(crb, tupleSize);
+            asm.emitValue(crb, tupleSizeRet);
             asm.emitSymbol(" * ");
             asm.emitValue(crb, outerLoopIndex);
             asm.emitSymbol(";");
