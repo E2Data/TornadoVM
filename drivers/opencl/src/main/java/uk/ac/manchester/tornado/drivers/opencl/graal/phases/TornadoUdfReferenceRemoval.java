@@ -108,17 +108,20 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
             }
 
             for (Node n : nodesToBeDeletedTotal) {
+                removeFromFrameState(n, graph);
                 for (Node us : n.usages()) {
-                    if (us instanceof FrameState) {
-                        // Remove node from FrameState before deleting
-                        FrameState f = (FrameState) us;
-                        f.values().remove(n);
-                    }
-                    us.replaceFirstInput(us, null);
+                    n.removeUsage(us);
                 }
+                n.clearInputs();
                 n.safeDelete();
+
             }
 
+            for (Node n : graph.getNodes()) {
+                if (n instanceof FixedGuardNode) {
+                    removeFixed(n, graph);
+                }
+            }
         }
 
     }
@@ -139,5 +142,36 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
             suc = suc.successors().first();
         }
         return suc;
+    }
+
+    public static void removeFromFrameState(Node del, StructuredGraph graph) {
+        for (Node n : graph.getNodes()) {
+            if (n instanceof FrameState) {
+                FrameState f = (FrameState) n;
+                if (f.values().contains(del)) {
+                    f.values().remove(del);
+                }
+            }
+        }
+    }
+
+    public static void removeFixed(Node n, StructuredGraph graph) {
+        Node pred = n.predecessor();
+        Node suc = n.successors().first();
+
+        n.replaceFirstSuccessor(suc, null);
+        n.replaceAtPredecessor(suc);
+        pred.replaceFirstSuccessor(n, suc);
+
+        removeFromFrameState(n, graph);
+
+        for (Node us : n.usages()) {
+            n.removeUsage(us);
+        }
+        n.clearInputs();
+
+        n.safeDelete();
+
+        return;
     }
 }
