@@ -176,10 +176,6 @@ public class TornadoExecutionContext {
         }
     }
 
-    public void addDevice(int deviceId) {
-        devices.add((TornadoAcceleratorDevice) TornadoCoreRuntime.getTornadoRuntime().getDriver(0).getDevice(deviceId));
-    }
-
     public void addDevice(TornadoAcceleratorDevice device) {
         devices.add(device);
     }

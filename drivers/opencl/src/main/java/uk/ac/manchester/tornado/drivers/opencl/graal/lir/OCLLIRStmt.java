@@ -161,6 +161,7 @@ public class OCLLIRStmt {
             this.lhs = lhs;
             this.cast = cast;
             this.address = address;
+            address.assignTo(lhs);
         }
 
         public LoadStmt(AllocatableValue lhs, OCLAddressCast cast, MemoryAccess address, Value index) {
@@ -169,6 +170,7 @@ public class OCLLIRStmt {
             this.cast = cast;
             this.address = address;
             this.index = index;
+            address.assignTo(lhs);
         }
 
         public void emitIntegerBasedIndexCode(OCLCompilationResultBuilder crb, OCLAssembler asm) {
@@ -255,6 +257,7 @@ public class OCLLIRStmt {
             this.address = address;
             this.op = op;
             this.index = index;
+            address.assignTo(lhs);
         }
 
         @Override
@@ -343,7 +346,7 @@ public class OCLLIRStmt {
             asm.space();
             asm.assign();
             asm.space();
-            asm.emitValue(crb, rhs);
+            asm.emitValueOrOp(crb, rhs);
             asm.delimiter();
             asm.eol();
         }
@@ -370,7 +373,7 @@ public class OCLLIRStmt {
             asm.space();
             asm.assign();
             asm.space();
-            asm.emitValue(crb, rhs);
+            asm.emitValueOrOp(crb, rhs);
             asm.delimiter();
             asm.eol();
         }
@@ -889,6 +892,35 @@ public class OCLLIRStmt {
                 asm.emitValue(crb, expr);
             }
             asm.delimiter();
+            asm.eol();
+        }
+
+        public Value getExpr() {
+            return expr;
+        }
+    }
+
+    @Opcode("RELOCATED_EXPR")
+    public static class RelocatedExpressionStmt extends ExprStmt {
+
+        public static final LIRInstructionClass<RelocatedExpressionStmt> TYPE = LIRInstructionClass.create(RelocatedExpressionStmt.class);
+
+        @Use
+        protected Value expr;
+
+        public RelocatedExpressionStmt(OCLLIROp expr) {
+            super(expr);
+            this.expr = expr;
+        }
+
+        @Override
+        public void emitCode(OCLCompilationResultBuilder crb, OCLAssembler asm) {
+            asm.indent();
+            if (expr instanceof OCLLIROp) {
+                ((OCLLIROp) expr).emit(crb, asm);
+            } else {
+                asm.emitValue(crb, expr);
+            }
             asm.eol();
         }
 

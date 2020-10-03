@@ -29,11 +29,25 @@ import uk.ac.manchester.tornado.api.profiler.TornadoProfiler;
 public class EmptyProfiler implements TornadoProfiler {
 
     @Override
+    public void addValueToMetric(ProfilerType type, String taskName, long value) {
+    }
+
+    @Override
     public void start(ProfilerType type) {
     }
 
     @Override
     public void start(ProfilerType type, String taskName) {
+    }
+
+    @Override
+    public void registerDeviceName(ProfilerType type, String taskName, String deviceInfo) {
+
+    }
+
+    @Override
+    public void registerDeviceID(ProfilerType type, String taskName, String deviceID) {
+
     }
 
     @Override

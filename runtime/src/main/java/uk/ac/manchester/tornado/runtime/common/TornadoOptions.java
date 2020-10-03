@@ -25,6 +25,8 @@
  */
 package uk.ac.manchester.tornado.runtime.common;
 
+import static uk.ac.manchester.tornado.runtime.common.Tornado.getProperty;
+
 public class TornadoOptions {
 
     public static boolean USER_SCHEDULING = false;
@@ -78,6 +80,42 @@ public class TornadoOptions {
     public static final boolean ENABLE_FMA = getBooleanValue("tornado.enable.fma", "True");
 
     /**
+     * Enable/Disable events dumping on program finish. False by default.
+     */
+    public final static boolean DUMP_EVENTS = Boolean.parseBoolean(getProperty("tornado.events.dump", "False"));
+
+    /**
+     * Sets the call stack limit in bytes for the OpenCL backend. Default is 8192.
+     */
+    public final static int OCL_CALL_STACK_LIMIT = Integer.parseInt(getProperty("tornado.opencl.callstack.limit", "8192"));
+
+    /**
+     * Sets the call stack limit in bytes for the PTX backend. Default is 8192.
+     */
+    public final static int PTX_CALL_STACK_LIMIT = Integer.parseInt(getProperty("tornado.ptx.callstack.limit", "8192"));
+
+    /**
+     * Prints the generated code by the TornadoVM compiler. Default is False.
+     */
+    public static final boolean PRINT_SOURCE = Boolean.parseBoolean(getProperty("tornado.print.kernel", "False"));
+
+    /**
+     * Once the internal buffers storing events are full, it will start to circulate
+     * old events and overwrite them with new ones. Default is True.
+     */
+    public static final boolean CIRCULAR_EVENTS = Boolean.parseBoolean(getProperty("tornado.circularevents", "True"));
+
+    /**
+     * Sets the array memory alignment for PTX devices. Default is 128 bytes.
+     */
+    public static final int PTX_ARRAY_ALIGNMENT = Integer.parseInt(getProperty("tornado.ptx.array.align", "128"));
+
+    /**
+     * Sets the array memory alignment for OpenCL devices. Default is 128 bytes.
+     */
+    public static final int OPENCL_ARRAY_ALIGNMENT = Integer.parseInt(getProperty("tornado.opencl.array.align", "128"));
+
+    /**
      * Option to enable profiler. It can be disabled at any point during runtime.
      *
      * @return boolean.
@@ -87,19 +125,31 @@ public class TornadoOptions {
     }
 
     /**
-     * Option for saving the profiler between different runs. It can be disabled at
-     * any point during runtime.
-     *
-     * @return boolean.
+     * Option to redirect profiler output.
      */
-    public static boolean isSaveProfilerEnabled() {
-        return getBooleanValue("tornado.profiler.save", "False");
-    }
+    public static String PROFILER_DIRECTORY = getProperty("tornado.profiler.dump.dir", "");
 
     public static final boolean DUMP_LOW_TIER_WITH_IGV = getBooleanValue("tornado.debug.lowtier", "False");
 
     public static final boolean RECOVER_BAILOUT = getBooleanValue("tornado.recover.bailout", "True");
 
+    /**
+     * Option to log the IP of the current machine on the profiler logs.
+     */
+    public static final boolean LOG_IP = getBooleanValue("tornado.enable.ip.logging", "False");
+
+    /**
+     * Option to sent the feature extraction and/or profiler logs to a specific
+     * port.
+     */
+    public static final String SOCKET_PORT = getProperty("tornado.dump.to.ip", "");
+
+    /**
+     * Option for enabling partial loop unrolling. The unroll factor can be
+     * configured to take any integer value of power of 2 and less than 32.
+     *
+     * @return boolean.
+     */
     public static boolean PARTIAL_UNROLL() {
         return getBooleanValue("tornado.experimental.partial.unroll", "False");
     }

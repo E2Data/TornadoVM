@@ -83,7 +83,7 @@ public class TaskUtils {
      * contains the invocation to the actual code. The actual code is an INVOKE that
      * is inside the apply method of the lambda. This method searches for the nested
      * method with the actual code to be compiled.
-     *
+     * 
      * @param task
      *            Input Tornado task that corresponds to the user code.
      */
@@ -251,6 +251,15 @@ public class TaskUtils {
         }
 
         return new PrebuiltTask(meta, id, entryPoint, filename, args, accesses, device, domain);
+    }
+
+    public static PrebuiltTask createTask(ScheduleMetaData meta, String id, String entryPoint, String filename, Object[] args, Access[] accesses, TornadoDevice device, int[] dims, int[] atomics) {
+        final DomainTree domain = new DomainTree(dims.length);
+        for (int i = 0; i < dims.length; i++) {
+            domain.set(i, new IntDomain(0, 1, dims[i]));
+        }
+
+        return new PrebuiltTask(meta, id, entryPoint, filename, args, accesses, device, domain, atomics);
     }
 
     private static CompilableTask createTask(ScheduleMetaData meta, String id, Method method, Object code, boolean extractCVs, Object... args) {

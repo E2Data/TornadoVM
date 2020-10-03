@@ -36,6 +36,7 @@ import uk.ac.manchester.tornado.api.exceptions.TornadoInternalError;
 import uk.ac.manchester.tornado.api.mm.TornadoDeviceObjectState;
 import uk.ac.manchester.tornado.api.mm.TornadoMemoryProvider;
 import uk.ac.manchester.tornado.runtime.common.CallStack;
+import uk.ac.manchester.tornado.runtime.common.DeviceBuffer;
 import uk.ac.manchester.tornado.runtime.common.TornadoAcceleratorDevice;
 import uk.ac.manchester.tornado.runtime.common.TornadoInstalledCode;
 import uk.ac.manchester.tornado.runtime.common.TornadoSchedulingStrategy;
@@ -120,17 +121,16 @@ public class JVMMapping implements TornadoAcceleratorDevice {
     }
 
     @Override
-    public boolean isDistibutedMemory() {
-        return false;
-    }
-
-    @Override
     public void ensureLoaded() {
-
     }
 
     @Override
     public CallStack createStack(int numArgs) {
+        return null;
+    }
+
+    @Override
+    public DeviceBuffer createBuffer(int[] arr) {
         return null;
     }
 
@@ -205,6 +205,16 @@ public class JVMMapping implements TornadoAcceleratorDevice {
     }
 
     @Override
+    public int[] checkAtomicsForTask(SchedulableTask task) {
+        return null;
+    }
+
+    @Override
+    public void enableThreadSharing() {
+        TornadoInternalError.unimplemented();
+    }
+
+    @Override
     public long getMaxAllocMemory() {
         return Runtime.getRuntime().maxMemory();
     }
@@ -232,6 +242,11 @@ public class JVMMapping implements TornadoAcceleratorDevice {
     @Override
     public Object getDeviceInfo() {
         return null;
+    }
+
+    @Override
+    public int getDriverIndex() {
+        return 0;
     }
 
 }
