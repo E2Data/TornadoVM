@@ -193,14 +193,27 @@ public class TornadoSketcher {
             graph.maybeCompress();
 
             // Compile all non-inlined call-targets into a single compilation-unit
-            graph.getInvokes() //
-                    .forEach(invoke -> { //
-                        if (openCLTokens.contains(invoke.callTarget().targetMethod().getName())) {
-                            throw new TornadoRuntimeException(
-                                    "[ERROR] Java method name corresponds to an OpenCL Token. Change the Java method's name: " + invoke.callTarget().targetMethod().getName());
-                        }
-                        getTornadoExecutor().execute(new SketchRequest(meta, invoke.callTarget().targetMethod(), providers, graphBuilderSuite, sketchTier));
-                    });
+            for (Invoke invoke : graph.getInvokes()) {
+                // do not sketch functions related to Lists and Collections
+                if (invoke.callTarget().targetMethod().toString().contains("List") || invoke.callTarget().targetMethod().toString().contains("Collection")) {
+                    continue;
+                }
+                if (openCLTokens.contains(invoke.callTarget().targetMethod().getName())) {
+                    throw new TornadoRuntimeException("[ERROR] Java method name corresponds to an OpenCL Token. Change the Java method's name: " + invoke.callTarget().targetMethod().getName());
+                }
+                getTornadoExecutor().execute(new SketchRequest(meta, invoke.callTarget().targetMethod(), providers, graphBuilderSuite, sketchTier));
+            }
+            // graph.getInvokes() //
+            // .forEach(invoke -> { //
+            // if (openCLTokens.contains(invoke.callTarget().targetMethod().getName())) {
+            // throw new TornadoRuntimeException(
+            // "[ERROR] Java method name corresponds to an OpenCL Token. Change the Java
+            // method's name: " + invoke.callTarget().targetMethod().getName());
+            // }
+            // getTornadoExecutor().execute(new SketchRequest(meta,
+            // invoke.callTarget().targetMethod(), providers, graphBuilderSuite,
+            // sketchTier));
+            // });
             return new Sketch(CachedGraph.fromReadonlyCopy(graph), meta);
 
         } catch (Throwable e) {
