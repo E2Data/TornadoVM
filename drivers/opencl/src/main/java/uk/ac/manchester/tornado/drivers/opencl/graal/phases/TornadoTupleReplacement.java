@@ -1036,13 +1036,15 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
 
                     HashMap<LoadFieldNode, LoadIndexedNode> fieldToIndex = new HashMap<>();
 
-                    int j = 0;
                     for (Node n : graph.getNodes()) {
                         if (n instanceof LoadFieldNode) {
-                            LoadFieldNode ld = (LoadFieldNode) n;
-                            if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
-                                fieldToIndex.put(ld, loadindxNodes.get(j));
-                                j++;
+                            if (!(((LoadFieldNode) n).field().toString().contains("mdm") || ((LoadFieldNode) n).field().toString().contains("udf"))) {
+                                LoadFieldNode ld = (LoadFieldNode) n;
+                                String field = ld.field().toString();
+                                int fieldNumber = Integer.parseInt(Character.toString(field.substring(field.lastIndexOf(".") + 1).charAt(1)));
+                                if (ld.field().toString().contains("org.apache.flink.api.java.tuple.Tuple")) {
+                                    fieldToIndex.put(ld, loadindxNodes.get(fieldNumber));
+                                }
                             }
                         }
                     }
@@ -1104,18 +1106,20 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                             }
                         }
                         if (flag) {
-                            if (n.successors().first() instanceof StoreIndexedNode) {
-                                nodesToDelete.add(n);
-                                break;
-                            } else {
-                                boolean inputLdIndx = false;
-                                for (Node inn : n.inputs()) {
-                                    if (inn instanceof LoadIndexedNode && !(n instanceof LoadFieldNode)) {
-                                        inputLdIndx = true;
-                                    }
-                                }
-                                if (!inputLdIndx) {
+                            if (!(n instanceof BinaryArithmeticNode || n instanceof FloatConvertNode)) {
+                                if (n.successors().first() instanceof StoreIndexedNode) {
                                     nodesToDelete.add(n);
+                                    break;
+                                } else {
+                                    boolean inputLdIndx = false;
+                                    for (Node inn : n.inputs()) {
+                                        if (inn instanceof LoadIndexedNode && !(n instanceof LoadFieldNode)) {
+                                            inputLdIndx = true;
+                                        }
+                                    }
+                                    if (!inputLdIndx) {
+                                        nodesToDelete.add(n);
+                                    }
                                 }
                             }
                         }
