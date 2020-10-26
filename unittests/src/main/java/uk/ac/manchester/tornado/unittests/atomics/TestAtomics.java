@@ -36,7 +36,6 @@ import uk.ac.manchester.tornado.api.common.Access;
 import uk.ac.manchester.tornado.api.common.TornadoDevice;
 import uk.ac.manchester.tornado.api.runtime.TornadoRuntime;
 import uk.ac.manchester.tornado.api.type.annotations.Atomic;
-import uk.ac.manchester.tornado.unittests.common.PTXNotSupported;
 import uk.ac.manchester.tornado.unittests.common.TornadoNotSupported;
 import uk.ac.manchester.tornado.unittests.common.TornadoTestBase;
 
@@ -174,24 +173,8 @@ public class TestAtomics extends TornadoTestBase {
         // Increments will be performed atomically when using TornadoAtomicInteger.
         // However the order is not guaranteed. For this test, we need to check that
         // there are not repeated values in the output array.
-        HashSet<Integer> set = new HashSet<>();
-
-        boolean repeated = false;
-        for (int j : a) {
-            if (!set.contains(j)) {
-                set.add(j);
-            } else {
-                repeated = true;
-                break;
-            }
-        }
+        boolean repeated = isValueRepeated(a);
         assertTrue(!repeated);
-    }
-
-    private void checkForPTX() {
-        if ("PTX".equals(TornadoRuntime.getTornadoRuntime().getDriver(TornadoRuntime.getTornadoRuntime().getDefaultDevice().getDriverIndex()).getName())) {
-            throw new PTXNotSupported("Atomic tests are not supported for the PTX backend");
-        }
     }
 
     /**
@@ -231,17 +214,7 @@ public class TestAtomics extends TornadoTestBase {
                 .execute();
         // @formatter:on
 
-        HashSet<Integer> set = new HashSet<>();
-
-        boolean repeated = false;
-        for (int j : a) {
-            if (!set.contains(j)) {
-                set.add(j);
-            } else {
-                repeated = true;
-                break;
-            }
-        }
+        boolean repeated = isValueRepeated(a);
         assertTrue(!repeated);
     }
 
@@ -275,32 +248,9 @@ public class TestAtomics extends TornadoTestBase {
             assertTrue(false);
         }
 
-        // On GPUs and FPGAs, threads within the same work-group run in parallel.
-        // Increments will be performed atomically when using TornadoAtomicInteger.
-        // However the order is not guaranteed. For this test, we need to check that
-        // there are not repeated values in the output array.
-        HashSet<Integer> set = new HashSet<>();
+        boolean repeated = isValueRepeated(a);
+        repeated &= isValueRepeated(a);
 
-        boolean repeated = false;
-        for (int j : a) {
-            if (!set.contains(j)) {
-                set.add(j);
-            } else {
-                repeated = true;
-                break;
-            }
-        }
-
-        set.clear();
-
-        for (int j : b) {
-            if (!set.contains(j)) {
-                set.add(j);
-            } else {
-                repeated = true;
-                break;
-            }
-        }
         assertTrue(!repeated);
     }
 
@@ -328,22 +278,7 @@ public class TestAtomics extends TornadoTestBase {
         if (!ts.isFinished()) {
             assertTrue(false);
         }
-
-        // On GPUs and FPGAs, threads within the same work-group run in parallel.
-        // Increments will be performed atomically when using TornadoAtomicInteger.
-        // However the order is not guaranteed. For this test, we need to check that
-        // there are not repeated values in the output array.
-        HashSet<Integer> set = new HashSet<>();
-
-        boolean repeated = false;
-        for (int j : a) {
-            if (!set.contains(j)) {
-                set.add(j);
-            } else {
-                repeated = true;
-                break;
-            }
-        }
+        boolean repeated = isValueRepeated(a);
         assertTrue(!repeated);
     }
 
@@ -371,15 +306,14 @@ public class TestAtomics extends TornadoTestBase {
         if (!ts.isFinished()) {
             assertTrue(false);
         }
+        boolean repeated = isValueRepeated(a);
+        assertTrue(!repeated);
+    }
 
-        // On GPUs and FPGAs, threads within the same work-group run in parallel.
-        // Increments will be performed atomically when using TornadoAtomicInteger.
-        // However the order is not guaranteed. For this test, we need to check that
-        // there are not repeated values in the output array.
+    private boolean isValueRepeated(int[] array) {
         HashSet<Integer> set = new HashSet<>();
-
         boolean repeated = false;
-        for (int j : a) {
+        for (int j : array) {
             if (!set.contains(j)) {
                 set.add(j);
             } else {
@@ -387,7 +321,187 @@ public class TestAtomics extends TornadoTestBase {
                 break;
             }
         }
-        assertTrue(!repeated);
+        return repeated;
     }
 
+    public static void atomic09(int[] input, AtomicInteger ai) {
+        for (@Parallel int i = 0; i < input.length; i++) {
+            input[i] = input[i] + ai.incrementAndGet();
+        }
+    }
+
+    @Test
+    public void testAtomic09() {
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValue = 311;
+
+        AtomicInteger ai = new AtomicInteger(initialValue);
+
+        new TaskSchedule("s0") //
+                .streamIn(a, ai) //
+                .task("t0", TestAtomics::atomic09, a, ai) //
+                .streamOut(a, ai) //
+                .execute();
+
+        boolean repeated = isValueRepeated(a);
+
+        int lastValue = ai.get();
+        assertTrue(!repeated);
+        assertEquals(initialValue + size, lastValue);
+    }
+
+    @Test
+    public void testAtomic10() {
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValue = 311;
+
+        AtomicInteger ai = new AtomicInteger(initialValue);
+
+        // We force a COPY_IN instead of STREAM_IN
+        new TaskSchedule("s0") //
+                .task("t0", TestAtomics::atomic09, a, ai) //
+                .streamOut(a, ai) //
+                .execute();
+
+        boolean repeated = isValueRepeated(a);
+
+        int lastValue = ai.get();
+        assertTrue(!repeated);
+        assertEquals(initialValue + size, lastValue);
+    }
+
+    @Test
+    public void testAtomic11() {
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValue = 311;
+
+        AtomicInteger ai = new AtomicInteger(initialValue);
+
+        // We force a COPY_IN instead of STREAM_IN
+        // Also, the atomic uses COPY_OUT non blocking call
+        new TaskSchedule("s0") //
+                .task("t0", TestAtomics::atomic09, a, ai) //
+                .streamOut(ai, a) //
+                .execute();
+
+        boolean repeated = isValueRepeated(a);
+
+        int lastValue = ai.get();
+        assertTrue(!repeated);
+        assertEquals(initialValue + size, lastValue);
+    }
+
+    public static void atomic10(int[] input, AtomicInteger ai, AtomicInteger bi) {
+        for (@Parallel int i = 0; i < input.length; i++) {
+            input[i] = input[i] + ai.incrementAndGet() + bi.incrementAndGet();
+        }
+    }
+
+    @Test
+    public void testAtomic12() {
+        // Calling multiple atomics
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValueA = 311;
+        final int initialValueB = 500;
+
+        AtomicInteger ai = new AtomicInteger(initialValueA);
+        AtomicInteger bi = new AtomicInteger(initialValueB);
+
+        new TaskSchedule("s0") //
+                .task("t0", TestAtomics::atomic10, a, ai, bi) //
+                .streamOut(ai, a, bi) //
+                .execute();
+
+        boolean repeated = isValueRepeated(a);
+
+        int lastValue = ai.get();
+        assertTrue(!repeated);
+        assertEquals(initialValueA + size, lastValue);
+
+        lastValue = bi.get();
+        assertEquals(initialValueB + size, lastValue);
+    }
+
+    public static void atomic13(int[] input, AtomicInteger ai) {
+        for (@Parallel int i = 0; i < input.length; i++) {
+            input[i] = input[i] + ai.decrementAndGet();
+        }
+    }
+
+    @Test
+    public void testAtomic13() {
+        // Calling multiple atomics
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValueA = 311;
+        AtomicInteger ai = new AtomicInteger(initialValueA);
+
+        new TaskSchedule("s0") //
+                .task("t0", TestAtomics::atomic13, a, ai) //
+                .streamOut(ai, a) //
+                .execute();
+
+        boolean repeated = isValueRepeated(a);
+
+        int lastValue = ai.get();
+        assertTrue(!repeated);
+        assertEquals(initialValueA - size, lastValue);
+    }
+
+    public static void atomic14(int[] input, AtomicInteger ai, AtomicInteger bi) {
+        for (@Parallel int i = 0; i < input.length; i++) {
+            input[i] = input[i] + ai.incrementAndGet();
+            input[i] = input[i] + bi.decrementAndGet();
+        }
+    }
+
+    @Test
+    public void testAtomic14() {
+        // Calling multiple atomics
+        checkForPTX();
+
+        final int size = 32;
+        int[] a = new int[size];
+        Arrays.fill(a, 1);
+
+        final int initialValueA = 311;
+        final int initialValueB = 50;
+        AtomicInteger ai = new AtomicInteger(initialValueA);
+        AtomicInteger bi = new AtomicInteger(initialValueB);
+
+        new TaskSchedule("s0") //
+                .task("t0", TestAtomics::atomic14, a, ai, bi) //
+                .streamOut(ai, a, bi) //
+                .execute();
+
+        int lastValue = ai.get();
+        assertEquals(initialValueA + size, lastValue);
+
+        lastValue = bi.get();
+        assertEquals(initialValueB - size, lastValue);
+    }
 }

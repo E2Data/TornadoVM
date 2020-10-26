@@ -5,7 +5,7 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
     }
     environment {
-        JAVA_HOME="/opt/jenkins/graal-jvmci-8/openjdk1.8.0_242/linux-amd64/product"
+        JAVA_HOME="/opt/jenkins/openjdk1.8.0_262-jvmci-20.2-b03"
         TORNADO_ROOT="/var/lib/jenkins/workspace/Tornado-pipeline"
         PATH="/var/lib/jenkins/workspace/Slambench/slambench-tornado-refactor/bin:/var/lib/jenkins/workspace/Tornado-pipeline/bin/bin:$PATH"    
         TORNADO_SDK="/var/lib/jenkins/workspace/Tornado-pipeline/bin/sdk" 
@@ -21,9 +21,19 @@ pipeline {
                 checkout([$class: 'GitSCM', branches: [[name: '**']], doGenerateSubmoduleConfigurations: false, extensions:[[$class: 'LocalBranch']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '9bca499b-bd08-4fb2-9762-12105b44890e', url: 'https://github.com/beehive-lab/TornadoVM-Internal.git']]])
            }
         }
-        stage('Build with JDK-8') {
+        stage('[PTX] Build with JDK-8') {
             steps {
-                sh 'make'
+                sh 'make BACKEND=ptx'
+            }
+        }
+        stage('[OpenCL + PTX] Build with JDK-8') {
+            steps {
+                sh 'make BACKEND=opencl,ptx'
+            }
+        }
+        stage('[OpenCL] Build with JDK-8') {
+            steps {
+                sh 'make BACKEND=opencl'
                 sh 'bash bin/bin/tornadoLocalInstallMaven'
             }
         }

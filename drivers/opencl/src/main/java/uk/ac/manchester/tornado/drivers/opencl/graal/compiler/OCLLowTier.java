@@ -44,6 +44,7 @@ import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoTupleOffset;
 import uk.ac.manchester.tornado.api.TornadoDeviceContext;
 import uk.ac.manchester.tornado.drivers.common.graal.compiler.DumpLowTierGraph;
 import uk.ac.manchester.tornado.drivers.opencl.graal.phases.OCLFMAPhase;
+import uk.ac.manchester.tornado.drivers.opencl.graal.phases.TornadoAtomicsParametersPhase;
 import uk.ac.manchester.tornado.runtime.common.TornadoOptions;
 import uk.ac.manchester.tornado.runtime.graal.compiler.TornadoLowTier;
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoFeatureExtraction;
@@ -83,6 +84,8 @@ public class OCLLowTier extends TornadoLowTier {
         if (TornadoOptions.ENABLE_FMA) {
             appendPhase(new OCLFMAPhase());
         }
+
+        appendPhase(new TornadoAtomicsParametersPhase());
 
         appendPhase(new SchedulePhase(SchedulePhase.SchedulingStrategy.LATEST_OUT_OF_LOOPS));
 
