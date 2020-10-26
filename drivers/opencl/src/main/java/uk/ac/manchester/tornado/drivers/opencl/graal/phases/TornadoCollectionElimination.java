@@ -5,12 +5,7 @@ import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.RawConstant;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.Node;
-import org.graalvm.compiler.nodes.ConstantNode;
-import org.graalvm.compiler.nodes.FixedGuardNode;
-import org.graalvm.compiler.nodes.InvokeNode;
-import org.graalvm.compiler.nodes.PiNode;
-import org.graalvm.compiler.nodes.StartNode;
-import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.*;
 import org.graalvm.compiler.nodes.calc.IntegerLessThanNode;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
 import org.graalvm.compiler.nodes.java.LoadIndexedNode;
@@ -238,6 +233,7 @@ public class TornadoCollectionElimination extends BasePhase<TornadoHighTierConte
                     ldInxdBroadcasted.replaceFirstSuccessor(null, suc);
 
                     for (Node fixedColl : collectionFixedNodes) {
+                        // removeFromFrameState(fixedColl, graph);
                         fixedColl.safeDelete();
                     }
 
@@ -259,4 +255,18 @@ public class TornadoCollectionElimination extends BasePhase<TornadoHighTierConte
 
         }
     }
+
+    // public static void removeFromFrameState(Node del, StructuredGraph graph) {
+    // for (Node n : graph.getNodes()) {
+    // if (n instanceof FrameState) {
+    // FrameState f = (FrameState) n;
+    // if (f.values().contains(del)) {
+    // f.values().remove(del);
+    // }
+    // // } else if (f.inputs().contains(del)) {
+    // // f.replaceFirstInput(del, null);
+    // // }
+    // }
+    // }
+    // }
 }

@@ -1,12 +1,7 @@
 package uk.ac.manchester.tornado.drivers.opencl.graal.phases;
 
 import org.graalvm.compiler.graph.Node;
-import org.graalvm.compiler.nodes.FixedGuardNode;
-import org.graalvm.compiler.nodes.FrameState;
-import org.graalvm.compiler.nodes.ParameterNode;
-import org.graalvm.compiler.nodes.PiNode;
-import org.graalvm.compiler.nodes.StructuredGraph;
-import org.graalvm.compiler.nodes.extended.UnboxNode;
+import org.graalvm.compiler.nodes.*;
 import org.graalvm.compiler.nodes.java.LoadFieldNode;
 import org.graalvm.compiler.phases.BasePhase;
 import uk.ac.manchester.tornado.runtime.graal.phases.TornadoHighTierContext;
@@ -124,6 +119,35 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
             }
         }
 
+        for (FrameState f : graph.getNodes().filter(FrameState.class)) {
+            for (int i = 0; i < f.virtualObjectMappingCount(); i++) {
+                f.virtualObjectMappings().remove(i);
+            }
+
+            for (Node val : f.values()) {
+                if (val != null && val.isDeleted()) {
+                    f.values().remove(val);
+                }
+            }
+
+        }
+
+        // for (Node n : graph.getNodes()) {
+        // // if (n instanceof FrameState) {
+        // System.out.println("*** Node: " + n);
+        // for (Node in : n.inputs()) {
+        // System.out.println("\t+ Input: " + in);
+        // }
+        // for (Node us : n.usages()) {
+        // System.out.println("\t- Usage: " + us);
+        // }
+        // if (n instanceof FrameState) {
+        // for (Node v : ((FrameState) n).values()) {
+        // System.out.println("\t& Value: " + v);
+        // }
+        // }
+        // // }
+        // }
     }
 
     public Node getLdPred(LoadFieldNode ldf, ArrayList<Node> nodesToBeDeleted) {
@@ -151,6 +175,9 @@ public class TornadoUdfReferenceRemoval extends BasePhase<TornadoHighTierContext
                 if (f.values().contains(del)) {
                     f.values().remove(del);
                 }
+                // } else if (f.inputs().contains(del)) {
+                // f.replaceFirstInput(del, null);
+                // }
             }
         }
     }

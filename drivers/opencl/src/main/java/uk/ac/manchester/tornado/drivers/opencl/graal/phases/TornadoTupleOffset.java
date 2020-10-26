@@ -53,6 +53,7 @@ public class TornadoTupleOffset extends Phase {
     static int arrayFieldIndex;
 
     static boolean copyArray;
+    static boolean twoForLoops;
 
     void flinkSetCompInfo(FlinkCompilerInfo flinkCompilerInfo) {
         this.differentTypes = flinkCompilerInfo.getDifferentTypes();
@@ -1256,7 +1257,7 @@ public class TornadoTupleOffset extends Phase {
 
         }
 
-        // System.out.println("copyArray: " + copyArray);
+        System.out.println("copyArray: " + copyArray);
         if (copyArray && arrayField) {
 
             if (broadcastedDataset) {
@@ -1935,6 +1936,693 @@ public class TornadoTupleOffset extends Phase {
                         }
                     }
                 }
+                return;
+            } else if (twoForLoops) {
+                System.out.println("> Two for loops!");
+                int tupleSize = fieldSizes.size();
+
+                if (tupleSize == 3 && returnTupleSize == 2) {
+                    // exus
+                    System.out.println("Input size 3, output size 2");
+                    // ---- READNODES:
+                    // Locate Phi Node with input GlobalThreadID
+                    ValuePhiNode globalPhi = null;
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof ValuePhiNode) {
+                            for (Node in : n.inputs()) {
+                                if (in instanceof GlobalThreadIdNode) {
+                                    globalPhi = (ValuePhiNode) n;
+                                    break;
+                                }
+                            }
+                        }
+                        if (globalPhi != null)
+                            break;
+                    }
+                    // Locate & order read address nodes
+                    // HashMap<Integer, ArrayList<OCLAddressNode>> readAddressNodes = new HashMap();
+                    HashMap<OCLAddressNode, Integer> readAddressNodes = new HashMap<>();
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof FloatingReadNode) {
+                            OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
+                            returnFieldNumberMultipleLoops(ocl, readAddressNodes, ocl, fieldTypes);
+                        }
+                    }
+
+                    for (OCLAddressNode ocl : readAddressNodes.keySet()) {
+                        System.out.println("- OCLRead: " + ocl + " index: " + readAddressNodes.get(ocl));
+                    }
+
+                    if (readAddressNodes.size() == 0) {
+                        // System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                        return;
+                    }
+
+                    // Locate & order write address nodes
+                    HashMap<OCLAddressNode, Integer> writeAddressNodes = new HashMap();
+
+                    for (Node n : graph.getNodes()) {
+                        if (n instanceof WriteNode) {
+                            OCLAddressNode ocl = (OCLAddressNode) n.inputs().first();
+                            returnFieldNumberMultipleLoops(ocl, writeAddressNodes, ocl, fieldTypesRet);
+                        }
+                    }
+
+                    if (writeAddressNodes.size() == 0) {
+                        // System.out.println("Oops, no elements in readAddressNodes HashMap!");
+                        return;
+                    }
+
+                    for (OCLAddressNode ocl : writeAddressNodes.keySet()) {
+                        System.out.println("+ OCLWrite: " + ocl + " index: " + writeAddressNodes.get(ocl));
+                    }
+
+                    // Make pairs of <OCLAddress, PhiNode> for Read Nodes
+                    HashMap<OCLAddressNode, ValuePhiNode> oclReadPhis = new HashMap<>();
+                    for (OCLAddressNode ocl : readAddressNodes.keySet()) {
+                        findPhi(ocl, oclReadPhis, ocl);
+                    }
+
+                    for (OCLAddressNode ocl : oclReadPhis.keySet()) {
+                        System.out.println("- OCLReadPhis: " + ocl + " phi: " + oclReadPhis.get(ocl));
+                    }
+
+                    // Make pairs of <OCLAddress, PhiNode> for Write Nodes
+                    HashMap<OCLAddressNode, ValuePhiNode> oclWritePhis = new HashMap<>();
+                    for (OCLAddressNode ocl : writeAddressNodes.keySet()) {
+                        findPhi(ocl, oclWritePhis, ocl);
+                    }
+
+                    for (OCLAddressNode ocl : oclWritePhis.keySet()) {
+                        System.out.println("+ OCLWritePhis: " + ocl + " phi: " + oclWritePhis.get(ocl));
+                    }
+
+                    HashMap<ValuePhiNode, SignExtendNode> signExtOfPhi = new HashMap<>();
+
+                    for (OCLAddressNode oclRead : oclReadPhis.keySet()) {
+                        ValuePhiNode ph = oclReadPhis.get(oclRead);
+                        SignExtendNode signExt = null;
+
+                        for (Node phUse : ph.usages()) {
+                            if (phUse instanceof SignExtendNode) {
+                                signExt = (SignExtendNode) phUse;
+                            }
+                        }
+
+                        if (signExt == null) {
+                            SignExtendNode sgnEx = null;
+                            for (Node phUse : ph.usages()) {
+                                if (phUse instanceof LeftShiftNode) {
+                                    LeftShiftNode lsh = (LeftShiftNode) phUse;
+                                    if (lsh.usages().filter(SignExtendNode.class).isNotEmpty()) {
+                                        for (Node lshUse : lsh.usages()) {
+                                            if (lshUse instanceof SignExtendNode) {
+                                                sgnEx = (SignExtendNode) lshUse;
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        for (Node lshUse : lsh.usages()) {
+                                            if (lshUse instanceof AddNode) {
+                                                for (Node adus : lshUse.usages()) {
+                                                    sgnEx = (SignExtendNode) adus;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (sgnEx == null) {
+                                return;
+                            } else {
+                                signExt = (SignExtendNode) sgnEx.copyWithInputs();
+                                for (Node in : signExt.inputs()) {
+                                    signExt.replaceFirstInput(in, ph);
+                                }
+                            }
+
+                            if (signExt == null) {
+                                System.out.println("NO SIGNEXTEND AFTER PHI!!!");
+                                return;
+                            }
+
+                            signExtOfPhi.put(ph, signExt);
+                        }
+                    }
+
+                    for (ValuePhiNode phi : signExtOfPhi.keySet()) {
+                        System.out.println("* Phi: " + phi + " signExt: " + signExtOfPhi.get(phi));
+                    }
+
+                    // CASE: ReadNode paired with GlobalThreadID Phi
+                    // -- if index is same as array_index:
+                    // Locate write node
+                    for (OCLAddressNode readAddress : readAddressNodes.keySet()) {
+                        if (readAddressNodes.get(readAddress) == arrayFieldIndex && oclReadPhis.get(readAddress) == globalPhi) {
+                            FloatingReadNode fr = (FloatingReadNode) readAddress.usages().first();
+
+                            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                            WriteNode wr = null;
+                            for (Node us : fr.usages()) {
+                                if (us instanceof WriteNode) {
+                                    wr = (WriteNode) us;
+                                }
+                            }
+                            OCLAddressNode writeAddress = null;
+                            for (Node in : wr.inputs()) {
+                                if (in instanceof OCLAddressNode) {
+                                    writeAddress = (OCLAddressNode) in;
+                                }
+                            }
+
+                            Stamp readStamp = fr.stamp(NodeView.DEFAULT);
+
+                            Constant headerConst = new RawConstant(24);
+                            ConstantNode header = new ConstantNode(headerConst, StampFactory.forKind(JavaKind.Long));
+                            graph.addWithoutUnique(header);
+
+                            for (Node in : readAddress.inputs()) {
+                                if (in instanceof AddNode) {
+                                    readAddress.replaceFirstInput(in, header);
+                                }
+                            }
+
+                            for (Node in : writeAddress.inputs()) {
+                                if (in instanceof AddNode) {
+                                    writeAddress.replaceFirstInput(in, header);
+                                }
+                            }
+
+                            int sizeOfFields;
+                            if (differentTypes) {
+                                sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                                System.out.println("## Different types 1 : " + sizeOfFields);
+                            } else {
+                                sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                                System.out.println("## Same types 1: " + sizeOfFields);
+                            }
+
+                            int sizeOfRetFields;
+                            if (differentTypesRet) {
+                                System.out.println("## Different ret types 1");
+                                sizeOfRetFields = arrayFieldTotalBytes + 8;
+                            } else {
+                                System.out.println("## Same ret types 1");
+                                sizeOfRetFields = arrayFieldTotalBytes + fieldSizesRet.get(1);
+                            }
+
+                            int arrayFieldSize;
+                            if (differentTypes) {
+                                // padding
+                                arrayFieldSize = 8;
+                            } else {
+                                // since we copy the input array this size should be correct
+                                arrayFieldSize = fieldSizes.get(0);
+                            }
+                            int arrayLength = arrayFieldTotalBytes / arrayFieldSize;
+
+                            identifyNodesToBeDeleted(wr, nodesToBeDeleted);
+
+                            Node pred = wr.predecessor();
+                            CopyArrayTupleField cpAr = new CopyArrayTupleField(sizeOfFields, sizeOfRetFields, arrayFieldSize, arrayLength, globalPhi, readAddress, writeAddress, "double", readStamp,
+                                    returnTupleArrayFieldNo);
+                            graph.addWithoutUnique(cpAr);
+                            graph.addAfterFixed((FixedWithNextNode) pred, cpAr);
+
+                            wr.replaceAtUsages(cpAr);
+
+                            for (Node n : nodesToBeDeleted.keySet()) {
+                                Integer[] count = nodesToBeDeleted.get(n);
+                                System.out.println("==== CASE1: delete " + n);
+
+                                // if the usages are as many as the occurrences delete
+                                if (count[0] == count[1]) {
+                                    if (n instanceof FixedNode) {
+                                        removeFixed(n);
+                                    } else if (!(n instanceof ParameterNode || n instanceof OCLAddressNode)) {
+                                        n.safeDelete();
+                                    }
+                                }
+                            }
+                            writeAddressNodes.remove(writeAddress);
+                            oclWritePhis.remove(writeAddress);
+                        } else if (readAddressNodes.get(readAddress) == arrayFieldIndex) {
+
+                            ValuePhiNode innerLoopPhi = oclReadPhis.get(readAddress);
+
+                            if (tupleArrayFieldNo == 0) {
+                                // if the first field of the Tuple3 is an array
+                                // ----- Access Field 0
+                                AddNode adNode = getAddInput(readAddress);
+                                HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                                int numOfOCL = 0;
+                                for (Node addUse : adNode.usages()) {
+                                    if (addUse instanceof OCLAddressNode) {
+                                        numOfOCL++;
+                                    }
+                                }
+                                AddNode adNode0;
+                                if (numOfOCL > 1) {
+                                    adNode0 = (AddNode) adNode.copyWithInputs();
+
+                                    FloatingReadNode fr = null;
+                                    for (Node us : readAddress.usages()) {
+                                        if (us instanceof FloatingReadNode) {
+                                            fr = (FloatingReadNode) us;
+                                        }
+                                    }
+
+                                    OCLAddressNode ocln = (OCLAddressNode) readAddress.copyWithInputs();
+                                    ocln.replaceFirstInput(adNode, adNode0);
+                                    if (fr != null) {
+                                        fr.replaceFirstInput(readAddress, ocln);
+                                    } else {
+                                        System.out.println("ReadNode is NULL");
+                                    }
+
+                                } else {
+                                    adNode0 = adNode;
+                                }
+
+                                Node adInput0 = null;
+
+                                for (Node adin : adNode0.inputs()) {
+                                    if (!(adin instanceof ConstantNode)) {
+                                        adInput0 = adin;
+                                    }
+                                }
+
+                                if (adInput0 != null) {
+                                    identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                                }
+
+                                // new nodes
+                                Constant arrayFieldSizeConst;
+
+                                if (differentTypes) {
+                                    // padding
+                                    System.out.println("## Different types arr 2");
+                                    arrayFieldSizeConst = new RawConstant(8);
+                                } else {
+                                    System.out.println("## Same types arr 2");
+                                    arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
+                                }
+
+                                ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                                graph.addWithoutUnique(arrayFieldSize);
+
+                                // Constant arrayIndexConst = new RawConstant(arrayFieldIndex);
+                                // ConstantNode arrayIndex = new ConstantNode(arrayIndexConst,
+                                // StampFactory.positiveInt());
+                                // graph.addWithoutUnique(arrayIndex);
+
+                                SignExtendNode sn = null;
+
+                                for (Node us : innerLoopPhi.usages()) {
+                                    if (us instanceof SignExtendNode) {
+                                        sn = (SignExtendNode) us;
+                                    }
+                                }
+
+                                MulNode m = new MulNode(arrayFieldSize, sn);
+                                graph.addWithoutUnique(m);
+
+                                int sizeOfFields;
+
+                                if (differentTypes) {
+                                    System.out.println("## Different types 2");
+                                    sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                                } else {
+                                    System.out.println("## Same types 2");
+                                    sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                                }
+
+                                Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                                ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                                graph.addWithoutUnique(fieldsSize);
+
+                                SignExtendNode signExt = signExtOfPhi.get(globalPhi);
+                                MulNode m2 = new MulNode(signExt, fieldsSize);
+                                graph.addWithoutUnique(m2);
+
+                                AddNode addOffset0 = new AddNode(m, m2);
+                                graph.addWithoutUnique(addOffset0);
+
+                                adNode0.replaceFirstInput(adInput0, addOffset0);
+                            }
+
+                        } else if (readAddressNodes.get(readAddress) == 1) {
+                            // -- else code for accessing second Tuple field
+                            // CASE: ReadNode paired with other Phi Node
+                            // -- if index == array_index
+                            // -- 24 + 8*phi + (f1 + f2 + f3)*GlobalPhi
+
+                            // ----- Access Field 1
+                            ValuePhiNode innerLoopPhi = oclReadPhis.get(readAddress);
+
+                            AddNode adNode1 = getAddInput(readAddress);
+                            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                            int numOfOCL = 0;
+
+                            Node adInput1 = null;
+                            for (Node adin : adNode1.inputs()) {
+                                if (!(adin instanceof ConstantNode)) {
+                                    adInput1 = adin;
+                                }
+                            }
+
+                            if (adInput1 != null && numOfOCL == 1) {
+                                identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                            }
+
+                            Constant field0SizeConst = new RawConstant(arrayFieldTotalBytes);
+                            ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(field0Size);
+
+                            SignExtendNode signExt = null;
+
+                            for (Node us : innerLoopPhi.usages()) {
+                                if (us instanceof SignExtendNode) {
+                                    signExt = (SignExtendNode) us;
+                                }
+                            }
+
+                            int sizeOfFields;
+
+                            if (differentTypes) {
+                                System.out.println("## Different types 3");
+                                sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                            } else {
+                                System.out.println("## Same types 3");
+                                sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                            }
+
+                            Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                            ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(fieldsSize);
+
+                            MulNode m3 = new MulNode(signExt, fieldsSize);
+                            graph.addWithoutUnique(m3);
+                            AddNode addOffset1 = new AddNode(field0Size, m3);
+                            graph.addWithoutUnique(addOffset1);
+
+                            adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                            if (numOfOCL == 1) {
+                                for (Node n : nodesToBeDeleted.keySet()) {
+                                    System.out.println("==== CASE2: delete " + n);
+                                    Integer[] count = nodesToBeDeleted.get(n);
+                                    // if the usages are as many as the occurrences delete
+                                    if (count[0] == count[1]) {
+                                        // System.out.println("= DELETE " + n);
+                                        n.safeDelete();
+                                    }
+                                }
+                            }
+                        } else if (readAddressNodes.get(readAddress) == 2) {
+                            // ----- Access Field 2
+                            ValuePhiNode innerLoopPhi = oclReadPhis.get(readAddress);
+
+                            AddNode adNode1 = getAddInput(readAddress);
+                            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                            int numOfOCL = 0;
+
+                            Node adInput1 = null;
+                            for (Node adin : adNode1.inputs()) {
+                                if (!(adin instanceof ConstantNode)) {
+                                    adInput1 = adin;
+                                }
+                            }
+
+                            if (adInput1 != null && numOfOCL == 1) {
+                                identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                            }
+
+                            int sizeOfField0Field1;
+
+                            if (differentTypes) {
+                                sizeOfField0Field1 = arrayFieldTotalBytes + 8;
+                            } else {
+                                sizeOfField0Field1 = arrayFieldTotalBytes + fieldSizes.get(1);
+                            }
+
+                            Constant field01SizeConst = new RawConstant(sizeOfField0Field1);
+                            ConstantNode field01Size = new ConstantNode(field01SizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(field01Size);
+
+                            SignExtendNode signExt = null;
+
+                            for (Node us : innerLoopPhi.usages()) {
+                                if (us instanceof SignExtendNode) {
+                                    signExt = (SignExtendNode) us;
+                                }
+                            }
+
+                            int sizeOfFields;
+
+                            if (differentTypes) {
+                                System.out.println("## Different types 4");
+                                sizeOfFields = arrayFieldTotalBytes + 8 + 8;
+                            } else {
+                                System.out.println("## Same types 4");
+                                sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                            }
+
+                            Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                            ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(fieldsSize);
+
+                            MulNode m3 = new MulNode(signExt, fieldsSize);
+                            graph.addWithoutUnique(m3);
+                            AddNode addOffset1 = new AddNode(field01Size, m3);
+                            graph.addWithoutUnique(addOffset1);
+
+                            adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                            if (numOfOCL == 1) {
+                                for (Node n : nodesToBeDeleted.keySet()) {
+                                    System.out.println("==== CASE3: delete " + n);
+                                    Integer[] count = nodesToBeDeleted.get(n);
+                                    // if the usages are as many as the occurrences delete
+                                    if (count[0] == count[1]) {
+                                        // System.out.println("= DELETE " + n);
+                                        n.safeDelete();
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    // WRITE ADDRESS NODES
+                    for (OCLAddressNode writeAddress : writeAddressNodes.keySet()) {
+                        if (writeAddressNodes.get(writeAddress) == arrayFieldIndex && !(oclWritePhis.get(writeAddress) == globalPhi)) {
+                            ValuePhiNode innerLoopPhi = oclWritePhis.get(writeAddress);
+                            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                            boolean input = false;
+                            for (Node in : writeAddress.inputs()) {
+                                if (in instanceof ParameterNode) {
+                                    if (in.toString().contains("(1)")) {
+                                        input = true;
+                                    }
+                                }
+                            }
+
+                            AddNode adNode = getAddInput(writeAddress);
+
+                            int numOfOCL = 0;
+                            for (Node addUse : adNode.usages()) {
+                                if (addUse instanceof OCLAddressNode) {
+                                    numOfOCL++;
+                                }
+                            }
+                            AddNode adNode0;
+                            if (numOfOCL > 1) {
+                                adNode0 = (AddNode) adNode.copyWithInputs();
+                                WriteNode wr = null;
+                                for (Node us : writeAddress.usages()) {
+                                    if (us instanceof WriteNode) {
+                                        wr = (WriteNode) us;
+                                    }
+                                }
+
+                                OCLAddressNode ocln = (OCLAddressNode) writeAddress.copyWithInputs();
+                                ocln.replaceFirstInput(adNode, adNode0);
+                                if (wr != null) {
+                                    wr.replaceFirstInput(writeAddress, ocln);
+                                } else {
+                                    System.out.println("WriteNode is NULL");
+                                }
+
+                            } else {
+                                adNode0 = adNode;
+                            }
+
+                            Node adInput0 = null;
+                            for (Node adin : adNode0.inputs()) {
+                                if (!(adin instanceof ConstantNode)) {
+                                    adInput0 = adin;
+                                }
+                            }
+
+                            if (adInput0 != null && numOfOCL == 1) {
+                                identifyNodesToBeDeleted(adInput0, nodesToBeDeleted);
+                            }
+                            // new nodes
+                            Constant arrayFieldSizeConst;
+                            if (input) {
+                                if (differentTypes) {
+                                    // padding
+                                    System.out.println("## Different types (in r) ar 5");
+                                    arrayFieldSizeConst = new RawConstant(8);
+                                } else {
+                                    System.out.println("## Same types (in r) ar 5");
+                                    arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
+                                }
+                            } else {
+                                if (differentTypesRet) {
+                                    // padding
+                                    System.out.println("## Different types ret ar 5");
+                                    arrayFieldSizeConst = new RawConstant(8);
+                                } else {
+                                    System.out.println("## Same types ret ar 5");
+                                    arrayFieldSizeConst = new RawConstant(fieldSizesRet.get(0));
+                                }
+                            }
+
+                            ConstantNode arrayFieldSize = new ConstantNode(arrayFieldSizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(arrayFieldSize);
+
+                            SignExtendNode sn = null;
+
+                            for (Node in : innerLoopPhi.usages()) {
+                                if (in instanceof SignExtendNode) {
+                                    sn = (SignExtendNode) in;
+                                }
+                            }
+
+                            MulNode m = new MulNode(arrayFieldSize, sn);
+                            graph.addWithoutUnique(m);
+
+                            int sizeOfFields;
+
+                            if (input) {
+                                if (differentTypes) {
+                                    System.out.println("## Different types (in) 5");
+                                    sizeOfFields = returnArrayFieldTotalBytes + 8 + 8;
+                                } else {
+                                    System.out.println("## Same types (in) 5");
+                                    sizeOfFields = returnArrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
+                                }
+                            } else {
+                                if (differentTypesRet) {
+                                    System.out.println("## Different types ret 5");
+                                    sizeOfFields = returnArrayFieldTotalBytes + 8;
+                                } else {
+                                    System.out.println("## Same types ret 5");
+                                    sizeOfFields = returnArrayFieldTotalBytes + fieldSizesRet.get(1);
+                                }
+                            }
+
+                            SignExtendNode globalSn = null;
+                            for (Node in : globalPhi.usages()) {
+                                if (in instanceof SignExtendNode) {
+                                    globalSn = (SignExtendNode) in;
+                                }
+                            }
+                            Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                            ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(fieldsSize);
+                            MulNode m2 = new MulNode(fieldsSize, globalSn);
+                            graph.addWithoutUnique(m2);
+
+                            AddNode addOffset0 = new AddNode(m, m2);
+                            graph.addWithoutUnique(addOffset0);
+
+                            adNode0.replaceFirstInput(adInput0, addOffset0);
+
+                            if (numOfOCL == 1) {
+                                for (Node n : nodesToBeDeleted.keySet()) {
+                                    if (!(n instanceof SignExtendNode)) {
+                                        System.out.println("==== CASE4: delete " + n);
+                                        Integer[] count = nodesToBeDeleted.get(n);
+                                        // if the usages are as many as the occurrences delete
+                                        if (count[0] == count[1]) {
+                                            // System.out.println("= DELETE " + n);
+                                            n.safeDelete();
+                                        }
+                                    }
+                                }
+                            }
+
+                        } else if (writeAddressNodes.get(writeAddress) == 1) {
+                            ValuePhiNode loopPhi = oclWritePhis.get(writeAddress);
+                            HashMap<Node, Integer[]> nodesToBeDeleted = new HashMap<>();
+
+                            SignExtendNode signExt = null;
+                            for (Node us : loopPhi.usages()) {
+                                if (us instanceof SignExtendNode) {
+                                    signExt = (SignExtendNode) us;
+                                }
+                            }
+
+                            AddNode adNode1 = getAddInput(writeAddress);
+
+                            Node adInput1 = null;
+                            for (Node adin : adNode1.inputs()) {
+                                if (!(adin instanceof ConstantNode)) {
+                                    adInput1 = adin;
+                                }
+                            }
+
+                            if (adInput1 != null) {
+                                identifyNodesToBeDeleted(adInput1, nodesToBeDeleted);
+                            }
+
+                            // new nodes
+                            int sizeOfFields;
+                            if (differentTypesRet) {
+                                System.out.println("## Different ret types 6");
+                                sizeOfFields = returnArrayFieldTotalBytes + 8;
+                            } else {
+                                System.out.println("## Same ret types 6");
+                                sizeOfFields = returnArrayFieldTotalBytes + fieldSizesRet.get(1);
+                            }
+                            Constant fieldsSizeConst = new RawConstant(sizeOfFields);
+                            ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(fieldsSize);
+
+                            MulNode m2 = new MulNode(signExt, fieldsSize);
+                            graph.addWithoutUnique(m2);
+
+                            Constant field0SizeConst = new RawConstant(arrayFieldTotalBytes);
+                            ConstantNode field0Size = new ConstantNode(field0SizeConst, StampFactory.positiveInt());
+                            graph.addWithoutUnique(field0Size);
+
+                            AddNode addOffset1 = new AddNode(m2, field0Size);
+                            graph.addWithoutUnique(addOffset1);
+
+                            adNode1.replaceFirstInput(adInput1, addOffset1);
+
+                            for (Node n : nodesToBeDeleted.keySet()) {
+                                System.out.println("==== CASE5: delete " + n);
+                                Integer[] count = nodesToBeDeleted.get(n);
+                                // if the usages are as many as the occurrences delete
+                                if (count[0] == count[1]) {
+                                    n.safeDelete();
+                                }
+                            }
+                        }
+                    }
+
+                }
+
                 return;
             }
 
