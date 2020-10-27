@@ -31,14 +31,7 @@ import java.util.Set;
 
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
-import org.graalvm.compiler.nodes.EndNode;
-import org.graalvm.compiler.nodes.IfNode;
-import org.graalvm.compiler.nodes.LoopBeginNode;
-import org.graalvm.compiler.nodes.LoopEndNode;
-import org.graalvm.compiler.nodes.LoopExitNode;
-import org.graalvm.compiler.nodes.MergeNode;
-import org.graalvm.compiler.nodes.ReturnNode;
-import org.graalvm.compiler.nodes.StartNode;
+import org.graalvm.compiler.nodes.*;
 import org.graalvm.compiler.nodes.cfg.Block;
 import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
 import org.graalvm.compiler.nodes.extended.IntegerSwitchNode;
@@ -293,7 +286,16 @@ public class OCLBlockVisitor implements ControlFlowGraph.RecursiveVisitor<Block>
                     // We need to check that none of the blocks reachable from dominators has been
                     // already closed.
                     if (!wasBlockAlreadyClosed(block.getDominator()) && !isBlockInABreak(block, pdom)) {
-                        asm.endScope(block.toString());
+                        if (block.getBeginNode() instanceof MergeNode && pdom.getBeginNode() instanceof MergeNode) {
+                            if (!wasBlockAlreadyClosed(block)) {
+                                // Don't produce end bracket for this block
+                                merges.add(block);
+                            } else {
+                                asm.endScope(block.toString());
+                            }
+                        } else {
+                            asm.endScope(block.toString());
+                        }
                     }
                 }
             } else if (!merges.contains(pdom) && isMergeBlock(pdom) && switches.contains(block) && isSwitchBlock(block.getDominator())) {
