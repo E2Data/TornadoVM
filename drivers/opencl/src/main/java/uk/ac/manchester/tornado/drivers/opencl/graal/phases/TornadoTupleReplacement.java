@@ -1950,6 +1950,29 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         }
                     }
 
+                    if (arrayField) {
+                        for (Node n : graph.getNodes()) {
+                            if (n instanceof LoadFieldNode && ((LoadFieldNode) n).field().toString().contains("f" + tupleArrayFieldNo)) {
+                                while (n != null && !(n.successors().first() instanceof LoadIndexedNode)) {
+                                    n = n.successors().first();
+                                }
+
+                                if (n == null)
+                                    break;
+
+                                for (Node in : n.successors().first().inputs()) {
+                                    if (in instanceof ConstantNode) {
+                                        ConstantNode c = (ConstantNode) in;
+                                        TornadoTupleOffset.arrayFieldIndex = Integer.parseInt(c.getValue().toValueString());
+                                    } else if (in instanceof PhiNode) {
+                                        TornadoTupleOffset.arrayIteration = true;
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
                     HashSet<LoadIndexedNode> initialLdIndex = new HashSet<>();
                     for (Node n : graph.getNodes()) {
                         if (n instanceof LoadFieldNode && ((LoadFieldNode) n).field().toString().contains("Tuple")) {
