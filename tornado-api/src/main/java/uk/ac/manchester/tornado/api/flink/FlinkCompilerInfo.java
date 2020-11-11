@@ -41,6 +41,8 @@ public class FlinkCompilerInfo {
     private ArrayList<String> fieldTypesRet = new ArrayList<>();
     // ----- TornadoCollectionElimination
     private boolean broadcastedDataset;
+    // flink info
+    private int arraySize;
 
     // setters
     // --- TornadoTupleReplacement
@@ -174,6 +176,11 @@ public class FlinkCompilerInfo {
         this.broadcastedDataset = broadcastedDataset;
     }
 
+    // flink
+    public void setArraySize(int arraySize) {
+        this.arraySize = arraySize;
+    }
+
     // getters
     // --- TornadoTupleReplacement
     public boolean getHasTuples() {
@@ -304,5 +311,9 @@ public class FlinkCompilerInfo {
 
     public String getArrayType() {
         return this.arrayType;
+    }
+
+    public int getArraySize() {
+        return this.arraySize;
     }
 }
