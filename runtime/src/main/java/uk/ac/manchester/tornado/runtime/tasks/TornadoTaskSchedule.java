@@ -815,7 +815,7 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
     }
 
     private AbstractTaskGraph analyzeSkeletonAndRun() {
-        AbstractTaskGraph graph = null;
+        AbstractTaskGraph graph;
         if (!reduceExpressionRewritten) {
             graph = reduceAnalysis();
         } else {
