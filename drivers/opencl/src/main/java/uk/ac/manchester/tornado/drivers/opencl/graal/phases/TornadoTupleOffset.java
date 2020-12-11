@@ -816,7 +816,8 @@ public class TornadoTupleOffset extends Phase {
                             }
                         }
                         if (!differentTypesRet && !returnArrayField) {
-                            System.out.println("differentTypesRet: " + differentTypesRet + " returnArrayField: " + returnArrayField);
+                            // System.out.println("differentTypesRet: " + differentTypesRet + "
+                            // returnArrayField: " + returnArrayField);
                             return;
                         }
                         // return;
@@ -842,7 +843,7 @@ public class TornadoTupleOffset extends Phase {
                         }
                         AddNode adNode0;
                         if (numOfOCL > 1) {
-                            System.out.println("More than one OCLNode");
+                            // System.out.println("More than one OCLNode");
                             adNode0 = (AddNode) adNode.copyWithInputs();
                         } else {
                             adNode0 = adNode;
@@ -1071,7 +1072,7 @@ public class TornadoTupleOffset extends Phase {
                         }
                         AddNode adNode0;
                         if (numOfOCL > 1) {
-                            System.out.println("More than one OCLNode");
+                            // System.out.println("More than one OCLNode");
                             adNode0 = (AddNode) adNode.copyWithInputs();
                         } else {
                             adNode0 = adNode;
@@ -2245,12 +2246,12 @@ public class TornadoTupleOffset extends Phase {
                 }
                 return;
             } else if (twoForLoops) {
-                System.out.println("> Two for loops!");
+                // System.out.println("> Two for loops!");
                 int tupleSize = fieldSizes.size();
 
                 if (tupleSize == 3 && returnTupleSize == 2) {
                     // exus
-                    System.out.println("Input size 3, output size 2");
+                    // System.out.println("Input size 3, output size 2");
                     // ---- READNODES:
                     // Locate Phi Node with input GlobalThreadID
                     ValuePhiNode globalPhi = null;
@@ -2276,9 +2277,10 @@ public class TornadoTupleOffset extends Phase {
                         }
                     }
 
-                    for (OCLAddressNode ocl : readAddressNodes.keySet()) {
-                        System.out.println("- OCLRead: " + ocl + " index: " + readAddressNodes.get(ocl));
-                    }
+                    // for (OCLAddressNode ocl : readAddressNodes.keySet()) {
+                    // System.out.println("- OCLRead: " + ocl + " index: " +
+                    // readAddressNodes.get(ocl));
+                    // }
 
                     if (readAddressNodes.size() == 0) {
                         // System.out.println("Oops, no elements in readAddressNodes HashMap!");
@@ -2300,9 +2302,10 @@ public class TornadoTupleOffset extends Phase {
                         return;
                     }
 
-                    for (OCLAddressNode ocl : writeAddressNodes.keySet()) {
-                        System.out.println("+ OCLWrite: " + ocl + " index: " + writeAddressNodes.get(ocl));
-                    }
+                    // for (OCLAddressNode ocl : writeAddressNodes.keySet()) {
+                    // System.out.println("+ OCLWrite: " + ocl + " index: " +
+                    // writeAddressNodes.get(ocl));
+                    // }
 
                     // Make pairs of <OCLAddress, PhiNode> for Read Nodes
                     HashMap<OCLAddressNode, ValuePhiNode> oclReadPhis = new HashMap<>();
@@ -2310,9 +2313,10 @@ public class TornadoTupleOffset extends Phase {
                         findPhi(ocl, oclReadPhis, ocl);
                     }
 
-                    for (OCLAddressNode ocl : oclReadPhis.keySet()) {
-                        System.out.println("- OCLReadPhis: " + ocl + " phi: " + oclReadPhis.get(ocl));
-                    }
+                    // for (OCLAddressNode ocl : oclReadPhis.keySet()) {
+                    // System.out.println("- OCLReadPhis: " + ocl + " phi: " +
+                    // oclReadPhis.get(ocl));
+                    // }
 
                     // Make pairs of <OCLAddress, PhiNode> for Write Nodes
                     HashMap<OCLAddressNode, ValuePhiNode> oclWritePhis = new HashMap<>();
@@ -2320,9 +2324,10 @@ public class TornadoTupleOffset extends Phase {
                         findPhi(ocl, oclWritePhis, ocl);
                     }
 
-                    for (OCLAddressNode ocl : oclWritePhis.keySet()) {
-                        System.out.println("+ OCLWritePhis: " + ocl + " phi: " + oclWritePhis.get(ocl));
-                    }
+                    // for (OCLAddressNode ocl : oclWritePhis.keySet()) {
+                    // System.out.println("+ OCLWritePhis: " + ocl + " phi: " +
+                    // oclWritePhis.get(ocl));
+                    // }
 
                     HashMap<ValuePhiNode, SignExtendNode> signExtOfPhi = new HashMap<>();
 
@@ -2378,9 +2383,9 @@ public class TornadoTupleOffset extends Phase {
                         }
                     }
 
-                    for (ValuePhiNode phi : signExtOfPhi.keySet()) {
-                        System.out.println("* Phi: " + phi + " signExt: " + signExtOfPhi.get(phi));
-                    }
+                    // for (ValuePhiNode phi : signExtOfPhi.keySet()) {
+                    // System.out.println("* Phi: " + phi + " signExt: " + signExtOfPhi.get(phi));
+                    // }
 
                     // CASE: ReadNode paired with GlobalThreadID Phi
                     // -- if index is same as array_index:
@@ -2425,18 +2430,18 @@ public class TornadoTupleOffset extends Phase {
                             int sizeOfFields;
                             if (differentTypes) {
                                 sizeOfFields = arrayFieldTotalBytes + 8 + 8;
-                                System.out.println("## Different types 1 : " + sizeOfFields);
+                                // System.out.println("## Different types 1 : " + sizeOfFields);
                             } else {
                                 sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
-                                System.out.println("## Same types 1: " + sizeOfFields);
+                                // System.out.println("## Same types 1: " + sizeOfFields);
                             }
 
                             int sizeOfRetFields;
                             if (differentTypesRet) {
-                                System.out.println("## Different ret types 1");
+                                // System.out.println("## Different ret types 1");
                                 sizeOfRetFields = arrayFieldTotalBytes + 8;
                             } else {
-                                System.out.println("## Same ret types 1");
+                                // System.out.println("## Same ret types 1");
                                 sizeOfRetFields = arrayFieldTotalBytes + fieldSizesRet.get(1);
                             }
 
@@ -2462,7 +2467,7 @@ public class TornadoTupleOffset extends Phase {
 
                             for (Node n : nodesToBeDeleted.keySet()) {
                                 Integer[] count = nodesToBeDeleted.get(n);
-                                System.out.println("==== CASE1: delete " + n);
+                                // System.out.println("==== CASE1: delete " + n);
 
                                 // if the usages are as many as the occurrences delete
                                 if (count[0] == count[1]) {
@@ -2531,10 +2536,10 @@ public class TornadoTupleOffset extends Phase {
 
                                 if (differentTypes) {
                                     // padding
-                                    System.out.println("## Different types arr 2");
+                                    // System.out.println("## Different types arr 2");
                                     arrayFieldSizeConst = new RawConstant(8);
                                 } else {
-                                    System.out.println("## Same types arr 2");
+                                    // System.out.println("## Same types arr 2");
                                     arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
                                 }
 
@@ -2560,10 +2565,10 @@ public class TornadoTupleOffset extends Phase {
                                 int sizeOfFields;
 
                                 if (differentTypes) {
-                                    System.out.println("## Different types 2");
+                                    // System.out.println("## Different types 2");
                                     sizeOfFields = arrayFieldTotalBytes + 8 + 8;
                                 } else {
-                                    System.out.println("## Same types 2");
+                                    // System.out.println("## Same types 2");
                                     sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
                                 }
 
@@ -2621,10 +2626,10 @@ public class TornadoTupleOffset extends Phase {
                             int sizeOfFields;
 
                             if (differentTypes) {
-                                System.out.println("## Different types 3");
+                                // System.out.println("## Different types 3");
                                 sizeOfFields = arrayFieldTotalBytes + 8 + 8;
                             } else {
-                                System.out.println("## Same types 3");
+                                // System.out.println("## Same types 3");
                                 sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
                             }
 
@@ -2641,7 +2646,7 @@ public class TornadoTupleOffset extends Phase {
 
                             if (numOfOCL == 1) {
                                 for (Node n : nodesToBeDeleted.keySet()) {
-                                    System.out.println("==== CASE2: delete " + n);
+                                    // System.out.println("==== CASE2: delete " + n);
                                     Integer[] count = nodesToBeDeleted.get(n);
                                     // if the usages are as many as the occurrences delete
                                     if (count[0] == count[1]) {
@@ -2693,10 +2698,10 @@ public class TornadoTupleOffset extends Phase {
                             int sizeOfFields;
 
                             if (differentTypes) {
-                                System.out.println("## Different types 4");
+                                // System.out.println("## Different types 4");
                                 sizeOfFields = arrayFieldTotalBytes + 8 + 8;
                             } else {
-                                System.out.println("## Same types 4");
+                                // System.out.println("## Same types 4");
                                 sizeOfFields = arrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
                             }
 
@@ -2713,7 +2718,7 @@ public class TornadoTupleOffset extends Phase {
 
                             if (numOfOCL == 1) {
                                 for (Node n : nodesToBeDeleted.keySet()) {
-                                    System.out.println("==== CASE3: delete " + n);
+                                    // System.out.println("==== CASE3: delete " + n);
                                     Integer[] count = nodesToBeDeleted.get(n);
                                     // if the usages are as many as the occurrences delete
                                     if (count[0] == count[1]) {
@@ -2786,19 +2791,19 @@ public class TornadoTupleOffset extends Phase {
                             if (input) {
                                 if (differentTypes) {
                                     // padding
-                                    System.out.println("## Different types (in r) ar 5");
+                                    // System.out.println("## Different types (in r) ar 5");
                                     arrayFieldSizeConst = new RawConstant(8);
                                 } else {
-                                    System.out.println("## Same types (in r) ar 5");
+                                    // System.out.println("## Same types (in r) ar 5");
                                     arrayFieldSizeConst = new RawConstant(fieldSizes.get(0));
                                 }
                             } else {
                                 if (differentTypesRet) {
                                     // padding
-                                    System.out.println("## Different types ret ar 5");
+                                    // System.out.println("## Different types ret ar 5");
                                     arrayFieldSizeConst = new RawConstant(8);
                                 } else {
-                                    System.out.println("## Same types ret ar 5");
+                                    // System.out.println("## Same types ret ar 5");
                                     arrayFieldSizeConst = new RawConstant(fieldSizesRet.get(0));
                                 }
                             }
@@ -2821,18 +2826,18 @@ public class TornadoTupleOffset extends Phase {
 
                             if (input) {
                                 if (differentTypes) {
-                                    System.out.println("## Different types (in) 5");
+                                    // System.out.println("## Different types (in) 5");
                                     sizeOfFields = returnArrayFieldTotalBytes + 8 + 8;
                                 } else {
-                                    System.out.println("## Same types (in) 5");
+                                    // System.out.println("## Same types (in) 5");
                                     sizeOfFields = returnArrayFieldTotalBytes + fieldSizes.get(1) + fieldSizes.get(2);
                                 }
                             } else {
                                 if (differentTypesRet) {
-                                    System.out.println("## Different types ret 5");
+                                    // System.out.println("## Different types ret 5");
                                     sizeOfFields = returnArrayFieldTotalBytes + 8;
                                 } else {
-                                    System.out.println("## Same types ret 5");
+                                    // System.out.println("## Same types ret 5");
                                     sizeOfFields = returnArrayFieldTotalBytes + fieldSizesRet.get(1);
                                 }
                             }
@@ -2857,7 +2862,7 @@ public class TornadoTupleOffset extends Phase {
                             if (numOfOCL == 1) {
                                 for (Node n : nodesToBeDeleted.keySet()) {
                                     if (!(n instanceof SignExtendNode)) {
-                                        System.out.println("==== CASE4: delete " + n);
+                                        // System.out.println("==== CASE4: delete " + n);
                                         Integer[] count = nodesToBeDeleted.get(n);
                                         // if the usages are as many as the occurrences delete
                                         if (count[0] == count[1]) {
@@ -2895,10 +2900,10 @@ public class TornadoTupleOffset extends Phase {
                             // new nodes
                             int sizeOfFields;
                             if (differentTypesRet) {
-                                System.out.println("## Different ret types 6");
+                                // System.out.println("## Different ret types 6");
                                 sizeOfFields = returnArrayFieldTotalBytes + 8;
                             } else {
-                                System.out.println("## Same ret types 6");
+                                // System.out.println("## Same ret types 6");
                                 sizeOfFields = returnArrayFieldTotalBytes + fieldSizesRet.get(1);
                             }
                             Constant fieldsSizeConst = new RawConstant(sizeOfFields);
@@ -2918,7 +2923,7 @@ public class TornadoTupleOffset extends Phase {
                             adNode1.replaceFirstInput(adInput1, addOffset1);
 
                             for (Node n : nodesToBeDeleted.keySet()) {
-                                System.out.println("==== CASE5: delete " + n);
+                                // System.out.println("==== CASE5: delete " + n);
                                 Integer[] count = nodesToBeDeleted.get(n);
                                 // if the usages are as many as the occurrences delete
                                 if (count[0] == count[1]) {
