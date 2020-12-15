@@ -46,6 +46,7 @@ public class TornadoTupleOffset extends Phase {
     private String arrayType;
     private int returnTupleSize;
     private int broadcastedArrayFieldTotalBytes;
+    private int broadcastedSize;
 
     private boolean broadcastedDataset;
 
@@ -75,6 +76,7 @@ public class TornadoTupleOffset extends Phase {
         this.arrayType = flinkCompilerInfo.getArrayType();
         this.returnTupleSize = flinkCompilerInfo.getReturnTupleSize();
         this.broadcastedArrayFieldTotalBytes = flinkCompilerInfo.getArrayFieldTotalBytes();
+        this.broadcastedSize = flinkCompilerInfo.getBroadcastedSize();
     }
 
     private void retInnerOCL(Node n, ValuePhiNode ph, ArrayList<OCLAddressNode> innerReads, OCLAddressNode ocl) {
@@ -520,9 +522,17 @@ public class TornadoTupleOffset extends Phase {
                                         Constant fieldsSizeConst = new RawConstant(sizeOfFields);
                                         ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
                                         graph.addWithoutUnique(fieldsSize);
-
-                                        SignExtendNode signExt = signExtOfPhi.get(globalPhi);
-                                        MulNode m2 = new MulNode(signExt, fieldsSize);
+                                        System.out.println("- Back it up");
+                                        MulNode m2;
+                                        if (broadcasted && broadcastedSize == 1) {
+                                            Constant oneIterationConst = new RawConstant(0);
+                                            ConstantNode oneIter = new ConstantNode(oneIterationConst, StampFactory.positiveInt());
+                                            graph.addWithoutUnique(oneIter);
+                                            m2 = new MulNode(oneIter, fieldsSize);
+                                        } else {
+                                            SignExtendNode signExt = signExtOfPhi.get(globalPhi);
+                                            m2 = new MulNode(signExt, fieldsSize);
+                                        }
                                         graph.addWithoutUnique(m2);
 
                                         AddNode addOffset0 = new AddNode(m, m2);
@@ -599,8 +609,15 @@ public class TornadoTupleOffset extends Phase {
                                     Constant fieldsSizeConst = new RawConstant(sizeOfFields);
                                     ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
                                     graph.addWithoutUnique(fieldsSize);
-
-                                    MulNode m3 = new MulNode(signExt, fieldsSize);
+                                    MulNode m3;
+                                    if (broadcasted && broadcastedSize == 1) {
+                                        Constant oneIterationConst = new RawConstant(0);
+                                        ConstantNode oneIter = new ConstantNode(oneIterationConst, StampFactory.positiveInt());
+                                        graph.addWithoutUnique(oneIter);
+                                        m3 = new MulNode(oneIter, fieldsSize);
+                                    } else {
+                                        m3 = new MulNode(signExt, fieldsSize);
+                                    }
                                     graph.addWithoutUnique(m3);
                                     AddNode addOffset1 = new AddNode(field0Size, m3);
                                     graph.addWithoutUnique(addOffset1);
@@ -1891,9 +1908,16 @@ public class TornadoTupleOffset extends Phase {
                                 Constant fieldsSizeConst = new RawConstant(sizeOfFields);
                                 ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
                                 graph.addWithoutUnique(fieldsSize);
-
-                                SignExtendNode signExt = signExtOfPhi.get(globalPhi);
-                                MulNode m2 = new MulNode(signExt, fieldsSize);
+                                MulNode m2;
+                                if (broadcasted && broadcastedSize == 1) {
+                                    Constant oneIterationConst = new RawConstant(0);
+                                    ConstantNode oneIter = new ConstantNode(oneIterationConst, StampFactory.positiveInt());
+                                    graph.addWithoutUnique(oneIter);
+                                    m2 = new MulNode(oneIter, fieldsSize);
+                                } else {
+                                    SignExtendNode signExt = signExtOfPhi.get(globalPhi);
+                                    m2 = new MulNode(signExt, fieldsSize);
+                                }
                                 graph.addWithoutUnique(m2);
 
                                 AddNode addOffset0 = new AddNode(m, m2);
@@ -1971,7 +1995,16 @@ public class TornadoTupleOffset extends Phase {
                             ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
                             graph.addWithoutUnique(fieldsSize);
 
-                            MulNode m3 = new MulNode(signExt, fieldsSize);
+                            MulNode m3;
+                            if (broadcasted && broadcastedSize == 1) {
+                                Constant oneIterationConst = new RawConstant(0);
+                                ConstantNode oneIter = new ConstantNode(oneIterationConst, StampFactory.positiveInt());
+                                graph.addWithoutUnique(oneIter);
+                                m3 = new MulNode(oneIter, fieldsSize);
+                            } else {
+                                m3 = new MulNode(signExt, fieldsSize);
+                            }
+
                             graph.addWithoutUnique(m3);
                             AddNode addOffset1 = new AddNode(field0Size, m3);
                             graph.addWithoutUnique(addOffset1);
