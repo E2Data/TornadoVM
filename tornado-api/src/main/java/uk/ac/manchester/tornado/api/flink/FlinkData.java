@@ -26,6 +26,14 @@ public class FlinkData {
         this.precompiled = precompiled;
     }
 
+    public FlinkData(boolean precompiled, double[]... inputBytes) {
+        for (double[] inputData : inputBytes) {
+            this.data.add(inputData);
+        }
+
+        this.precompiled = precompiled;
+    }
+
     public FlinkData(Object userFunc, boolean plainRed, byte[]... inputBytes) {
         this.data.add(userFunc);
         for (byte[] inputData : inputBytes) {
