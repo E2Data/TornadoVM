@@ -102,4 +102,32 @@ public class PrebuiltTest extends TornadoTestBase {
         }
     }
 
+    @Test
+    public void testPrebuiltReduce() {
+        double[] input = new double[512];
+        int size = input.length / 256;
+        double[] output = new double[size];
+        Arrays.fill(input, 2.0);
+        TornadoDevice defaultDevice = TornadoRuntime.getTornadoRuntime().getDriver(0).getDevice(0);
+        String tornadoSDK = System.getenv("TORNADO_SDK");
+        String filePath = tornadoSDK + "/examples/generated/";
+        filePath += "simple-double-reduce.cl";
+
+        // @formatter:off
+        TaskSchedule ts = new TaskSchedule("reduce-min-doubles")
+                .prebuiltTask("t0",
+                        "reduceDouble",
+                        filePath,
+                        new Object[] { input, output },
+                        new Access[] { Access.READ, Access.WRITE },
+                        defaultDevice,
+                        new int[] { input.length } )
+                .streamOut(output);
+        // @formatter:on
+        ts.execute();
+
+        System.out.println(Arrays.toString(output));
+
+    }
+
 }
