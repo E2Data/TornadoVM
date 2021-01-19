@@ -419,7 +419,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                     } else {
                         if (arrayField) {
                             // EXUS
-                            System.out.println("Array nested loops");
+                            // System.out.println("Array nested loops");
                             // handle store nodes
                             // 1) Case: Store node doesn't have a Parameter node as input
                             boolean hasParam = false;
