@@ -105,6 +105,48 @@ public class OCLLIRStmt {
         }
     }
 
+    @Opcode("COND")
+    public static class CondStmt extends AbstractInstruction {
+
+        public static final LIRInstructionClass<CondStmt> TYPE = LIRInstructionClass.create(CondStmt.class);
+
+        @Use
+        protected Value condition;
+        @Use
+        protected Value trueVal;
+        @Use
+        protected Value falseVal;
+        @Use
+        protected Value result;
+        protected String type;
+
+        public CondStmt(Value condition, Value trueVal, Value falseVal, Value result, String type) {
+            super(TYPE);
+            this.condition = condition;
+            this.trueVal = trueVal;
+            this.falseVal = falseVal;
+            this.result = result;
+            this.type = type;
+        }
+
+        @Override
+        public void emitCode(OCLCompilationResultBuilder crb, OCLAssembler asm) {
+            asm.indent();
+            asm.emitSymbol(type);
+            asm.emitSymbol(" ");
+            asm.emitValue(crb, result);
+            asm.emit(" = ");
+            asm.emitValue(crb, condition);
+            asm.emit(" ? ");
+            asm.emitValue(crb, trueVal);
+            asm.emit(" : ");
+            asm.emitValue(crb, falseVal);
+            asm.emitSymbol(";");
+            asm.emit(EOL);
+        }
+
+    }
+
     @Opcode("MOVE")
     public static class MoveStmt extends AbstractInstruction {
 

@@ -76,13 +76,7 @@ import org.graalvm.compiler.nodes.ShortCircuitOrNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValuePhiNode;
-import org.graalvm.compiler.nodes.calc.FloatEqualsNode;
-import org.graalvm.compiler.nodes.calc.FloatLessThanNode;
-import org.graalvm.compiler.nodes.calc.IntegerBelowNode;
-import org.graalvm.compiler.nodes.calc.IntegerEqualsNode;
-import org.graalvm.compiler.nodes.calc.IntegerLessThanNode;
-import org.graalvm.compiler.nodes.calc.IntegerTestNode;
-import org.graalvm.compiler.nodes.calc.IsNullNode;
+import org.graalvm.compiler.nodes.calc.*;
 import org.graalvm.compiler.nodes.cfg.Block;
 import org.graalvm.compiler.nodes.extended.SwitchNode;
 import org.graalvm.compiler.options.OptionValues;
@@ -564,6 +558,8 @@ public class OCLNodeLIRBuilder extends NodeLIRBuilder {
             emitShortCircuitOrNode((ShortCircuitOrNode) node);
         } else if (node instanceof PragmaUnrollNode || node instanceof ThreadConfigurationNode) {
             // ignore emit-action
+        } else if (node instanceof ConditionalNode) {
+            emitCond((ConditionalNode) node);
         } else {
             super.emitNode(node);
         }
@@ -602,6 +598,21 @@ public class OCLNodeLIRBuilder extends NodeLIRBuilder {
         final Value y = operandOrConjunction(node.getY());
         append(new AssignStmt(result, new OCLBinary.Expr(OCLBinaryOp.LOGICAL_OR, lirKind, x, y)));
         setResult(node, result);
+    }
+
+    private void emitCond(ConditionalNode conditional) {
+        Value input = operand(conditional.condition());
+        Value tVal = operand(conditional.trueValue());
+        Value fVal = operand(conditional.falseValue());
+        // The code generated for ConditionalNode at the moment is
+        // [result = condition ? trueValue : falseValue]
+        // therefore the trueValue and falseValue types
+        // as well as the result type should be the same
+        // TODO: Make this more generic
+        String type = tVal.getValueKind().toString().toLowerCase();
+        Value res = gen.newVariable(tVal.getValueKind());
+        append(new OCLLIRStmt.CondStmt(input, tVal, fVal, res, type));
+        setResult(conditional, res);
     }
 
     private void emitLoopExit(LoopExitNode node) {
