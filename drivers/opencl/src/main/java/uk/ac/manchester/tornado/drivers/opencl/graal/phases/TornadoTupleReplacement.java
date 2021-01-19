@@ -1698,7 +1698,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
                         }
                     }
                     if (!code) {
-                        System.out.println("Not running actual code");
+                        // System.out.println("Not running actual code");
                         return;
                     }
 
