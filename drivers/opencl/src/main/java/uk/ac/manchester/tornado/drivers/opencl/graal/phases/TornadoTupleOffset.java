@@ -522,7 +522,7 @@ public class TornadoTupleOffset extends Phase {
                                         Constant fieldsSizeConst = new RawConstant(sizeOfFields);
                                         ConstantNode fieldsSize = new ConstantNode(fieldsSizeConst, StampFactory.positiveInt());
                                         graph.addWithoutUnique(fieldsSize);
-                                        System.out.println("- Back it up");
+                                        // System.out.println("- Back it up");
                                         MulNode m2;
                                         if (broadcasted && broadcastedSize == 1) {
                                             Constant oneIterationConst = new RawConstant(0);
