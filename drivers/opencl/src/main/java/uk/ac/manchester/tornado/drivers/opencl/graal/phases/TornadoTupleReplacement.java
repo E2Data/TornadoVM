@@ -80,6 +80,7 @@ public class TornadoTupleReplacement extends BasePhase<TornadoHighTierContext> {
         }
 
         if (hasTuples) {
+            TornadoTupleOffset.copyArray = false;
             if (!broadcastedDataset) {
                 // at the moment we only handle cases where the input tuples are nested, for one
                 // for loop
