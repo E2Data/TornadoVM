@@ -380,6 +380,8 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
                     hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
                 }
                 hlBuffer.putInt(index);
+                streamInObjects.add(arg);
+                executionContext.getObjectState(arg).setStreamIn(true);
             }
 
             if (fData.isPrecompiled() && args.length > flinkArgs.size()) {
@@ -393,6 +395,8 @@ public class TornadoTaskSchedule implements AbstractTaskGraph {
                         hlBuffer.put(TornadoGraphBitcodes.LOAD_REF.index());
                     }
                     hlBuffer.putInt(index);
+                    streamInObjects.add(arg);
+                    executionContext.getObjectState(arg).setStreamIn(true);
                     i++;
                 }
             }
