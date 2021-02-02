@@ -23,6 +23,8 @@
 
 --add-exports jdk.internal.vm.ci/jdk.vm.ci.common=tornado.drivers.opencl
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.hotspot.meta=tornado.drivers.opencl
+--add-exports jdk.internal.vm.compiler/org.graalvm.compiler.nodes.virtual=tornado.drivers.opencl
+--add-exports jdk.internal.vm.compiler/org.graalvm.compiler.virtual.nodes=tornado.drivers.opencl
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.replacements.classfile=tornado.drivers.opencl
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.core.common.alloc=tornado.drivers.opencl
 --add-exports jdk.internal.vm.compiler/org.graalvm.compiler.core.common.util=tornado.drivers.opencl

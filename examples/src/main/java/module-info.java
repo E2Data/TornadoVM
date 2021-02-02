@@ -1,6 +1,10 @@
 open module tornado.examples {
     requires ejml.ddense;
 
+    requires org.objectweb.asm;
+    requires org.objectweb.asm.commons;
+    requires org.objectweb.asm.util;
+    requires java.instrument;
     requires transitive ejml.core;
     requires transitive lucene.core;
     requires transitive java.desktop;
