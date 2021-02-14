@@ -40,6 +40,7 @@ public class FlinkCompilerInfo {
     private boolean differentTypesRet = false;
     private ArrayList<Integer> fieldSizesRet = new ArrayList<>();
     private ArrayList<String> fieldTypesRet = new ArrayList<>();
+    private ArrayList<String> fieldTypesRetCopy = new ArrayList<>();
     // ----- TornadoCollectionElimination
     private boolean broadcastedDataset;
     // flink info
@@ -154,6 +155,10 @@ public class FlinkCompilerInfo {
 
     public void setFieldTypesRet(ArrayList<String> fieldTypesRet) {
         this.fieldTypesRet = fieldTypesRet;
+    }
+
+    public void setFieldTypesRetCopy(ArrayList<String> fieldTypesRetCopy) {
+        this.fieldTypesRetCopy = fieldTypesRetCopy;
     }
 
     public void setBroadcastedArrayFieldTotalBytes(int broadcastedArrayFieldTotalBytes) {
@@ -295,6 +300,10 @@ public class FlinkCompilerInfo {
 
     public ArrayList<String> getFieldTypesRet() {
         return this.fieldTypesRet;
+    }
+
+    public ArrayList<String> getFieldTypesRetCopy() {
+        return this.fieldTypesRetCopy;
     }
 
     public int getArrayFieldTotalBytes() {
